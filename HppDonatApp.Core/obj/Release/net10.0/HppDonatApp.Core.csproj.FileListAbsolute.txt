@@ -1,0 +1,13 @@
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/HppDonatApp.Core.csproj.AssemblyReference.cache
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/HppDonatApp.Core.GeneratedMSBuildEditorConfig.editorconfig
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/HppDonatApp.Core.AssemblyInfoInputs.cache
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/HppDonatApp.Core.AssemblyInfo.cs
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/HppDonatApp.Core.csproj.CoreCompileInputs.cache
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/HppDonatApp.Core.sourcelink.json
+/workspaces/HPPDONATBARU/HppDonatApp.Core/bin/Release/net10.0/HppDonatApp.Core.deps.json
+/workspaces/HPPDONATBARU/HppDonatApp.Core/bin/Release/net10.0/HppDonatApp.Core.dll
+/workspaces/HPPDONATBARU/HppDonatApp.Core/bin/Release/net10.0/HppDonatApp.Core.pdb
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/HppDonatApp.Core.dll
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/refint/HppDonatApp.Core.dll
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/HppDonatApp.Core.pdb
+/workspaces/HPPDONATBARU/HppDonatApp.Core/obj/Release/net10.0/ref/HppDonatApp.Core.dll

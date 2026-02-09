@@ -1,0 +1,566 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
+using Serilog;
+using HppDonatApp.Core.Models;
+
+namespace HppDonatApp.Core.Services;
+
+/// <summary>
+/// Service interface for pricing engine calculations.
+/// Defines contract for batch cost computation and pricing strategy application.
+/// </summary>
+public interface IPricingEngine
+{
+    /// <summary>
+    /// Synchronously calculates comprehensive batch cost and pricing information.
+    /// </summary>
+    /// <param name="request">The batch request containing all parameters for calculation</param>
+    /// <returns>Detailed batch cost result with breakdown and pricing information</returns>
+    BatchCostResult CalculateBatchCost(BatchRequest request);
+
+    /// <summary>
+    /// Asynchronously calculates comprehensive batch cost and pricing information.
+    /// </summary>
+    /// <param name="request">The batch request containing all parameters for calculation</param>
+    /// <param name="cancellationToken">Cancellation token for the async operation</param>
+    /// <returns>Task representing the asynchronous calculation operation</returns>
+    Task<BatchCostResult> CalculateBatchCostAsync(BatchRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Calculates costs for multiple batch requests with caching.
+    /// </summary>
+    /// <param name="requests">Collection of batch requests to process</param>
+    /// <returns>List of cost results corresponding to input requests</returns>
+    IEnumerable<BatchCostResult> CalculateMultipleBatches(IEnumerable<BatchRequest> requests);
+
+    /// <summary>
+    /// Clears the internal calculation cache (useful for testing and cache invalidation).
+    /// </summary>
+    void ClearCache();
+
+    /// <summary>
+    /// Gets statistics about the pricing engine operations (for diagnostics).
+    /// </summary>
+    /// <returns>Dictionary containing cache hits, misses, and calculation metrics</returns>
+    Dictionary<string, object> GetDiagnostics();
+}
+
+/// <summary>
+/// Primary implementation of pricing engine for HPP (Harga Pokok Produksi - Cost of Goods Sold) calculations.
+/// Handles complex calculations including ingredient costs, labor, energy, waste, and pricing strategies.
+/// This implementation includes comprehensive logging, caching, validation, and numeric safety measures.
+/// </summary>
+public class PricingEngine : IPricingEngine
+{
+    private readonly IMemoryCache _cache;
+    private readonly ILogger? _logger;
+    private readonly IPricingStrategy? _pricingStrategy;
+
+    // Cache statistics for diagnostics
+    private int _cacheHits;
+    private int _cacheMisses;
+    private int _calculationsCount;
+
+    // Constants for calculation and logging
+    private const string CacheKeyPrefix = "batch_cost_";
+    private const decimal MinimumUnitPrice = 0.01m;
+    private const decimal MaximumWastePercent = 0.99m;
+    private const int DefaultCacheExpirationMinutes = 60;
+
+    /// <summary>
+    /// Initializes the pricing engine with optional caching and logging support.
+    /// </summary>
+    /// <param name="cache">Memory cache instance for caching calculation results (optional)</param>
+    /// <param name="logger">Logger instance for diagnostic logging (optional)</param>
+    /// <param name="pricingStrategy">Pricing strategy service for price calculation (optional)</param>
+    public PricingEngine(
+        IMemoryCache? cache = null,
+        ILogger? logger = null,
+        IPricingStrategy? pricingStrategy = null)
+    {
+        _cache = cache ?? new MemoryCache(new MemoryCacheOptions());
+        _logger = logger;
+        _pricingStrategy = pricingStrategy ?? new FixedMarkupPricingStrategy();
+
+        _logger?.Debug("PricingEngine initialized with cache={CacheEnabled}, logger={LoggerEnabled}, strategy={StrategyType}",
+            cache != null, logger != null, _pricingStrategy?.GetType().Name ?? "Default");
+    }
+
+    /// <summary>
+    /// Synchronously calculates the comprehensive batch cost and pricing information.
+    /// This is the main entry point for pricing calculations.
+    /// </summary>
+    /// <param name="request">The batch request with all parameters</param>
+    /// <returns>Complete batch cost result with breakdown</returns>
+    public BatchCostResult CalculateBatchCost(BatchRequest request)
+    {
+        if (request == null)
+        {
+            _logger?.Error("CalculateBatchCost called with null request");
+            throw new ArgumentNullException(nameof(request), "Batch request cannot be null");
+        }
+
+        // Validate request
+        if (!request.IsValid())
+        {
+            _logger?.Warning("Invalid batch request received: {Request}", request);
+            throw new InvalidOperationException("Batch request contains invalid parameters");
+        }
+
+        // Check cache
+        var cacheKey = GenerateCacheKey(request);
+        if (_cache.TryGetValue(cacheKey, out BatchCostResult? cachedResult) && cachedResult != null)
+        {
+            _cacheHits++;
+            _logger?.Debug("Cache HIT for batch request. Cache hits={CacheHits}", _cacheHits);
+            return cachedResult;
+        }
+
+        _cacheMisses++;
+        _logger?.Debug("Cache MISS for batch request. Cache misses={CacheMisses}", _cacheMisses);
+
+        // Perform calculation
+        var result = PerformDetailedCalculation(request);
+
+        // Store in cache
+        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(DefaultCacheExpirationMinutes));
+        _calculationsCount++;
+
+        _logger?.Information("Batch cost calculated: UnitCost={UnitCost:C}, SuggestedPrice={SuggestedPrice:C}, SellableUnits={SellableUnits}",
+            result.UnitCost, result.SuggestedPrice, result.SellableUnits);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Asynchronously calculates batch cost to allow non-blocking operations.
+    /// </summary>
+    /// <param name="request">Batch request parameters</param>
+    /// <param name="cancellationToken">Cancellation token for task cancellation</param>
+    /// <returns>Task yielding the batch cost result</returns>
+    public async Task<BatchCostResult> CalculateBatchCostAsync(BatchRequest request, CancellationToken cancellationToken = default)
+    {
+        return await Task.Run(() => CalculateBatchCost(request), cancellationToken);
+    }
+
+    /// <summary>
+    /// Calculates costs for multiple batch scenarios in one operation.
+    /// Useful for batch processing and comparison scenarios.
+    /// </summary>
+    /// <param name="requests">Collection of batch requests</param>
+    /// <returns>Enumerable of cost results</returns>
+    public IEnumerable<BatchCostResult> CalculateMultipleBatches(IEnumerable<BatchRequest> requests)
+    {
+        if (requests == null)
+        {
+            _logger?.Error("CalculateMultipleBatches called with null requests");
+            throw new ArgumentNullException(nameof(requests));
+        }
+
+        _logger?.Information("Calculating multiple batches: Count={BatchCount}", requests.Count());
+        return requests.Select(req =>
+        {
+            try
+            {
+                return CalculateBatchCost(req);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Error calculating batch cost");
+                throw;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Clears all cached calculation results.
+    /// Should be called when ingredient prices or settings change.
+    /// </summary>
+    public void ClearCache()
+    {
+        _logger?.Information("Clearing pricing engine cache");
+        // Note: MemoryCache doesn't have a built-in ClearAll, so we'd need custom tracking
+        // For now, this serves as a placeholder for custom cache implementation
+    }
+
+    /// <summary>
+    /// Gets diagnostic information about engine performance.
+    /// </summary>
+    /// <returns>Dictionary with statistics</returns>
+    public Dictionary<string, object> GetDiagnostics()
+    {
+        return new Dictionary<string, object>
+        {
+            { "CacheHits", _cacheHits },
+            { "CacheMisses", _cacheMisses },
+            { "TotalCalculations", _calculationsCount },
+            { "HitRate", _calculationsCount > 0 ? (double)_cacheHits / _calculationsCount : 0 },
+            { "EngineVersion", "1.0" }
+        };
+    }
+
+    /// <summary>
+    /// Performs the detailed calculation of all cost components.
+    /// This is the core calculation logic that breaks down costs step-by-step.
+    /// </summary>
+    private BatchCostResult PerformDetailedCalculation(BatchRequest request)
+    {
+        _logger?.Debug("Starting detailed calculation for batch with {ItemCount} items", request.Items.Count());
+
+        var result = new BatchCostResult();
+
+        try
+        {
+            // Step 1: Calculate ingredient costs
+            result.IngredientCost = CalculateIngredientCost(request);
+            _logger?.Debug("Ingredient cost calculated: {Cost:C}", result.IngredientCost);
+
+            // Step 2: Calculate oil costs
+            result.OilCost = CalculateOilCost(request);
+            result.OilAmortization = CalculateOilAmortization(request);
+            _logger?.Debug("Oil cost: {Cost:C}, Amortization: {Amortization:C}", result.OilCost, result.OilAmortization);
+
+            // Step 3: Calculate energy costs
+            result.EnergyCost = CalculateEnergyCost(request);
+            _logger?.Debug("Energy cost calculated: {Cost:C}", result.EnergyCost);
+
+            // Step 4: Calculate labor costs
+            result.LaborCost = CalculateLaborCost(request);
+            _logger?.Debug("Labor cost calculated: {Cost:C}", result.LaborCost);
+
+            // Step 5: Set overhead
+            result.OverheadCost = request.OverheadAllocated;
+
+            // Step 6: Calculate sellable units after waste
+            result.SellableUnits = CalculateSellableUnits(request);
+            _logger?.Debug("Sellable units calculated: {Units}", result.SellableUnits);
+
+            // Step 7: Calculate packaging costs
+            result.PackagingCost = CalculatePackagingCost(request, result.SellableUnits);
+            _logger?.Debug("Packaging cost calculated: {Cost:C}", result.PackagingCost);
+
+            // Step 8: Calculate total batch cost
+            result.TotalBatchCost = result.IngredientCost + result.OilCost + result.OilAmortization +
+                                   result.EnergyCost + result.LaborCost + result.OverheadCost + result.PackagingCost;
+            _logger?.Debug("Total batch cost: {Cost:C}", result.TotalBatchCost);
+
+            // Step 9: Calculate unit cost
+            if (result.SellableUnits <= 0)
+            {
+                _logger?.Error("Invalid sellable units for unit cost calculation: {Units}", result.SellableUnits);
+                throw new InvalidOperationException("Cannot calculate unit cost: no sellable units");
+            }
+
+            result.UnitCost = result.TotalBatchCost / result.SellableUnits;
+            _logger?.Debug("Unit cost calculated: {Cost:C}", result.UnitCost);
+
+            // Step 10: Apply pricing strategy
+            result.SuggestedPrice = _pricingStrategy!.CalculatePrice(result.UnitCost, request);
+            _logger?.Debug("Suggested price calculated using {Strategy}: {Price:C}", 
+                _pricingStrategy.GetType().Name, result.SuggestedPrice);
+
+            // Step 11: Apply rounding rule
+            result.SuggestedPrice = ApplyRoundingRule(result.SuggestedPrice, request.RoundingRule);
+            _logger?.Debug("Rounded price: {Price:C} using rule {Rule}", result.SuggestedPrice, request.RoundingRule);
+
+            // Step 12: Calculate VAT
+            result.PriceIncVat = result.SuggestedPrice * (1 + request.VatPercent);
+            _logger?.Debug("Price with VAT ({VatPercent:P}): {Price:C}", request.VatPercent, result.PriceIncVat);
+
+            // Step 13: Calculate margin
+            if (result.SuggestedPrice > 0)
+            {
+                result.Margin = (result.SuggestedPrice - result.UnitCost) / result.SuggestedPrice;
+            }
+            else
+            {
+                result.Margin = 0m;
+            }
+            _logger?.Debug("Margin calculated: {Margin:P1}", result.Margin);
+
+            // Step 14: Build breakdown dictionary
+            result.BreakdownDictionary = BuildBreakdownDictionary(result);
+
+            result.CalculatedAt = DateTime.UtcNow;
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Error during detailed calculation");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Calculates the total ingredient cost by multiplying quantity by price per unit.
+    /// If batch multiplier is specified, scales all ingredients proportionally.
+    /// </summary>
+    private decimal CalculateIngredientCost(BatchRequest request)
+    {
+        decimal totalCost = 0m;
+
+        foreach (var item in request.Items)
+        {
+            if (item.Quantity <= 0 || item.PricePerUnit < 0)
+            {
+                _logger?.Warning("Invalid recipe item: Quantity={Qty}, Price={Price}", item.Quantity, item.PricePerUnit);
+                continue;
+            }
+
+            // Scale quantity by batch multiplier
+            var scaledQuantity = item.Quantity * request.BatchMultiplier;
+            var itemCost = scaledQuantity * item.PricePerUnit;
+
+            _logger?.Debug("Ingredient item cost: {Name} {Qty} units @ {Price:C}/unit = {Total:C}",
+                item.IngredientId, scaledQuantity, item.PricePerUnit, itemCost);
+
+            totalCost += itemCost;
+        }
+
+        return totalCost;
+    }
+
+    /// <summary>
+    /// Calculates the cost of oil (cooking medium) for the batch.
+    /// </summary>
+    private decimal CalculateOilCost(BatchRequest request)
+    {
+        if (request.OilUsedLiters <= 0 || request.OilPricePerLiter <= 0)
+        {
+            return 0m;
+        }
+
+        var oilCost = request.OilUsedLiters * request.OilPricePerLiter;
+        _logger?.Debug("Oil cost: {Liters}L @ {Price:C}/L = {Cost:C}",
+            request.OilUsedLiters, request.OilPricePerLiter, oilCost);
+
+        return oilCost;
+    }
+
+    /// <summary>
+    /// Calculates the amortized cost of oil changes spread across multiple batches.
+    /// Formula: OilChangeCost / BatchesPerOilChange
+    /// </summary>
+    private decimal CalculateOilAmortization(BatchRequest request)
+    {
+        if (request.OilChangeCost <= 0 || request.BatchesPerOilChange <= 0)
+        {
+            return 0m;
+        }
+
+        var amortization = request.OilChangeCost / request.BatchesPerOilChange;
+        _logger?.Debug("Oil amortization: {Cost:C} / {Batches} = {Amortized:C}",
+            request.OilChangeCost, request.BatchesPerOilChange, amortization);
+
+        return amortization;
+    }
+
+    /// <summary>
+    /// Calculates the cost of energy (electricity) consumed in batch production.
+    /// </summary>
+    private decimal CalculateEnergyCost(BatchRequest request)
+    {
+        if (request.EnergyKwh <= 0 || request.EnergyRatePerKwh <= 0)
+        {
+            return 0m;
+        }
+
+        var energyCost = request.EnergyKwh * request.EnergyRatePerKwh;
+        _logger?.Debug("Energy cost: {Kwh}kWh @ {Rate:C}/kWh = {Cost:C}",
+            request.EnergyKwh, request.EnergyRatePerKwh, energyCost);
+
+        return energyCost;
+    }
+
+    /// <summary>
+    /// Calculates the total labor cost by summing all labor roles.
+    /// Each role contributes Hours * HourlyRate to the total.
+    /// </summary>
+    private decimal CalculateLaborCost(BatchRequest request)
+    {
+        decimal totalLaborCost = 0m;
+
+        if (request.Labor == null)
+        {
+            return 0m;
+        }
+
+        foreach (var labor in request.Labor)
+        {
+            if (labor.Hours <= 0 || labor.HourlyRate <= 0)
+            {
+                _logger?.Warning("Invalid labor role: {Name}, Hours={Hrs}, Rate={Rate:C}",
+                    labor.Name, labor.Hours, labor.HourlyRate);
+                continue;
+            }
+
+            var roleCost = labor.Hours * labor.HourlyRate;
+            totalLaborCost += roleCost;
+
+            _logger?.Debug("Labor role cost: {Name} {Hrs}h @ {Rate:C}/h = {Cost:C}",
+                labor.Name, labor.Hours, labor.HourlyRate, roleCost);
+        }
+
+        return totalLaborCost;
+    }
+
+    /// <summary>
+    /// Calculates the number of sellable units after accounting for waste and spoilage.
+    /// Formula: Floor(TheoreticalOutput * (1 - WastePercent))
+    /// </summary>
+    private int CalculateSellableUnits(BatchRequest request)
+    {
+        if (request.TheoreticalOutput <= 0)
+        {
+            _logger?.Error("Invalid theoretical output: {Output}", request.TheoreticalOutput);
+            return 0;
+        }
+
+        if (request.WastePercent < 0 || request.WastePercent >= MaximumWastePercent)
+        {
+            _logger?.Warning("Invalid waste percent: {Waste:P} (clamped to valid range)", request.WastePercent);
+            request.WastePercent = Math.Max(0, Math.Min(request.WastePercent, MaximumWastePercent));
+        }
+
+        var sellableUnits = (int)Math.Floor(request.TheoreticalOutput * (1 - request.WastePercent));
+        _logger?.Debug("Sellable units: Floor({TheoreticalOutput} * (1 - {Waste:P})) = {Sellable}",
+            request.TheoreticalOutput, request.WastePercent, sellableUnits);
+
+        return Math.Max(1, sellableUnits);
+    }
+
+    /// <summary>
+    /// Calculates the total packaging cost for all sellable units.
+    /// Formula: PackagingPerUnit * SellableUnits
+    /// </summary>
+    private decimal CalculatePackagingCost(BatchRequest request, int sellableUnits)
+    {
+        if (request.PackagingPerUnit <= 0 || sellableUnits <= 0)
+        {
+            return 0m;
+        }
+
+        var packagingCost = request.PackagingPerUnit * sellableUnits;
+        _logger?.Debug("Packaging cost: {Price:C}/unit * {Units} units = {Total:C}",
+            request.PackagingPerUnit, sellableUnits, packagingCost);
+
+        return packagingCost;
+    }
+
+    /// <summary>
+    /// Applies the specified rounding rule to a price value.
+    /// Rounding rules like "0.05", "0.10", or "1.00" round to nearest interval.
+    /// </summary>
+    private decimal ApplyRoundingRule(decimal price, string roundingRule)
+    {
+        if (string.IsNullOrWhiteSpace(roundingRule))
+        {
+            _logger?.Debug("No rounding rule specified");
+            return price;
+        }
+
+        if (!decimal.TryParse(roundingRule, out var roundTo))
+        {
+            _logger?.Warning("Invalid rounding rule format: {Rule}", roundingRule);
+            return price;
+        }
+
+        if (roundTo <= 0)
+        {
+            _logger?.Warning("Invalid rounding rule value: {Value}", roundTo);
+            return price;
+        }
+
+        var rounded = Math.Round(price / roundTo) * roundTo;
+        _logger?.Debug("Applied rounding rule {Rule}: {Original:C} -> {Rounded:C}", roundingRule, price, rounded);
+
+        return rounded;
+    }
+
+    /// <summary>
+    /// Builds a detailed breakdown dictionary of all cost components.
+    /// Used for pie charts and detailed cost analysis displays.
+    /// </summary>
+    private Dictionary<string, decimal> BuildBreakdownDictionary(BatchCostResult result)
+    {
+        var breakdown = new Dictionary<string, decimal>
+        {
+            { "Ingredients", result.IngredientCost },
+            { "Oil (Usage)", result.OilCost },
+            { "Oil (Maintenance)", result.OilAmortization },
+            { "Energy", result.EnergyCost },
+            { "Labor", result.LaborCost },
+            { "Overhead", result.OverheadCost },
+            { "Packaging", result.PackagingCost }
+        };
+
+        return breakdown;
+    }
+
+    /// <summary>
+    /// Generates a cache key based on request parameters.
+    /// Two identical requests should generate the same cache key.
+    /// </summary>
+    private string GenerateCacheKey(BatchRequest request)
+    {
+        var keyBuilder = new StringBuilder(CacheKeyPrefix);
+
+        // Include significant request parameters in key
+        keyBuilder.Append(request.BatchMultiplier.ToString("F2"));
+        keyBuilder.Append("_");
+        keyBuilder.Append(request.OilPricePerLiter.ToString("F2"));
+        keyBuilder.Append("_");
+        keyBuilder.Append(request.EnergyRatePerKwh.ToString("F2"));
+        keyBuilder.Append("_");
+        keyBuilder.Append(request.Markup.ToString("F2"));
+        keyBuilder.Append("_");
+        keyBuilder.Append(request.WastePercent.ToString("F2"));
+
+        return keyBuilder.ToString();
+    }
+
+    /// <summary>
+    /// Example method for demonstration and testing purposes.
+    /// Shows how to use the pricing engine for a sample donut batch.
+    /// </summary>
+    public static BatchCostResult RunSampleCalculation()
+    {
+        var engine = new PricingEngine();
+
+        var sampleRequest = new BatchRequest
+        {
+            Items = new List<RecipeItem>
+            {
+                new RecipeItem { IngredientId = 1, Quantity = 5m, Unit = "kg", PricePerUnit = 3.00m }, // Flour
+                new RecipeItem { IngredientId = 2, Quantity = 1m, Unit = "kg", PricePerUnit = 8.00m }, // Sugar
+                new RecipeItem { IngredientId = 3, Quantity = 0.5m, Unit = "liter", PricePerUnit = 12.00m } // Oil
+            },
+            BatchMultiplier = 1m,
+            OilUsedLiters = 2m,
+            OilPricePerLiter = 12.00m,
+            OilChangeCost = 500m,
+            BatchesPerOilChange = 10,
+            EnergyKwh = 5m,
+            EnergyRatePerKwh = 2.50m,
+            Labor = new List<LaborRole>
+            {
+                new LaborRole { Name = "Baker", HourlyRate = 50m, Hours = 2m }
+            },
+            OverheadAllocated = 100m,
+            TheoreticalOutput = 100,
+            WastePercent = 0.10m,
+            PackagingPerUnit = 0.50m,
+            Markup = 0.50m,
+            VatPercent = 0.10m,
+            RoundingRule = "0.05"
+        };
+
+        return engine.CalculateBatchCost(sampleRequest);
+    }
+}

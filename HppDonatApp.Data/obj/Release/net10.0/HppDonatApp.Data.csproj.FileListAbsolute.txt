@@ -1,0 +1,6 @@
+/workspaces/HPPDONATBARU/HppDonatApp.Data/obj/Release/net10.0/HppDonatApp.Data.csproj.AssemblyReference.cache
+/workspaces/HPPDONATBARU/HppDonatApp.Data/obj/Release/net10.0/HppDonatApp.Data.GeneratedMSBuildEditorConfig.editorconfig
+/workspaces/HPPDONATBARU/HppDonatApp.Data/obj/Release/net10.0/HppDonatApp.Data.AssemblyInfoInputs.cache
+/workspaces/HPPDONATBARU/HppDonatApp.Data/obj/Release/net10.0/HppDonatApp.Data.AssemblyInfo.cs
+/workspaces/HPPDONATBARU/HppDonatApp.Data/obj/Release/net10.0/HppDonatApp.Data.csproj.CoreCompileInputs.cache
+/workspaces/HPPDONATBARU/HppDonatApp.Data/obj/Release/net10.0/HppDonatApp.Data.sourcelink.json
