@@ -317,6 +317,229 @@ public class RoundingEngine : IRoundingEngine
             Console.WriteLine($"{price:C} -> {charm:C}");
         }
     }
+
+    /// <summary>
+    /// Advanced rounding strategy that combines multiple algorithms to find optimal price point.
+    /// Considers psychological pricing, competitor pricing windows, and profit margins.
+    /// </summary>
+    /// <param name="basePrice">The calculated base price before rounding</param>
+    /// <param name="targetMarginPercent">Desired profit margin percentage</param>
+    /// <param name="minAcceptablePrice">Minimum acceptable price (floor for profit)</param>
+    /// <returns>Optimized price that balances appeal with profitability</returns>
+    public decimal ApplyIntelligentRounding(decimal basePrice, decimal targetMarginPercent, decimal minAcceptablePrice)
+    {
+        _logger?.Debug("Applying intelligent rounding: BasePrice={Base}, TargetMargin={Margin:P}, MinPrice={Min}",
+            basePrice, targetMarginPercent, minAcceptablePrice);
+
+        // Strategy 1: Try charm pricing first
+        var charmPrice = ApplyCharmPricing(basePrice);
+        if (charmPrice >= minAcceptablePrice)
+        {
+            _logger?.Debug("Intelligent rounding selected charm price: {Price:C}", charmPrice);
+            return charmPrice;
+        }
+
+        // Strategy 2: Try standard rounding with common intervals
+        var commonIntervals = new[] { "0.01", "0.05", "0.10", "0.50", "1.00" };
+        foreach (var interval in commonIntervals)
+        {
+            var roundedPrice = RoundUp(basePrice, interval);
+            if (roundedPrice >= minAcceptablePrice)
+            {
+                _logger?.Debug("Intelligent rounding selected standard interval {Interval}: {Price:C}", interval, roundedPrice);
+                return roundedPrice;
+            }
+        }
+
+        // Fallback: Use base price if all strategies fail
+        _logger?.Warning("Intelligent rounding fallback: all strategies below minimum. Using base price: {Price:C}", basePrice);
+        return basePrice;
+    }
+
+    /// <summary>
+    /// Calculates the markdown from original price to achieve target selling price.
+    /// Useful for promotional pricing and discount calculations.
+    /// </summary>
+    /// <param name="originalPrice">Original selling price</param>
+    /// <param name="targetPrice">Desired selling price</param>
+    /// <returns>Markdown percentage (0-1, negative if price increased)</returns>
+    public decimal CalculateMarkdownPercent(decimal originalPrice, decimal targetPrice)
+    {
+        if (originalPrice <= 0)
+        {
+            _logger?.Warning("Invalid original price for markdown calculation: {Price}", originalPrice);
+            return 0m;
+        }
+
+        var markdown = (originalPrice - targetPrice) / originalPrice;
+        _logger?.Debug("Markdown from {Original} to {Target}: {Percent:P}", originalPrice, targetPrice, markdown);
+        return markdown;
+    }
+
+    /// <summary>
+    /// Gets rounding recommendations based on retail best practices.
+    /// Returns prices optimized for different sales channels and strategies.
+    /// </summary>
+    /// <param name="costPerUnit">Cost to produce one unit</param>
+    /// <param name="targetMarginPercent">Desired profit margin (0-1)</param>
+    /// <returns>Dictionary of strategy names to recommended prices</returns>
+    public Dictionary<string, decimal> GetRetailRecommendations(decimal costPerUnit, decimal targetMarginPercent)
+    {
+        if (costPerUnit < 0 || targetMarginPercent < 0 || targetMarginPercent > 1)
+        {
+            _logger?.Warning("Invalid parameters for retail recommendations: Cost={Cost:C}, Margin={Margin:P}",
+                costPerUnit, targetMarginPercent);
+            return new Dictionary<string, decimal>();
+        }
+
+        var recommendations = new Dictionary<string, decimal>();
+
+        // Premium strategy: Higher margin, charm pricing
+        var premiumBase = costPerUnit / (1 - targetMarginPercent - 0.15m);
+        recommendations["Premium (Charm)"] = ApplyCharmPricing(premiumBase);
+
+        // Standard strategy: Target margin with standard rounding
+        var standardBase = costPerUnit / (1 - targetMarginPercent);
+        recommendations["Standard (Rounded)"] = RoundUp(standardBase, "0.05");
+
+        // Value strategy: Lower margin, bulk appeal
+        var valueBase = costPerUnit / (1 - (targetMarginPercent * 0.75m));
+        recommendations["Value (Low Margin)"] = RoundDown(valueBase, "0.10");
+
+        // Competitive strategy: Aggressive pricing for market penetration
+        var competitiveBase = costPerUnit / (1 - (targetMarginPercent * 0.50m));
+        recommendations["Competitive (Aggressive)"] = RoundUp(competitiveBase, "0.01");
+
+        _logger?.Debug("Generated {Count} retail pricing recommendations for unit cost {Cost:C}", 
+            recommendations.Count, costPerUnit);
+
+        return recommendations;
+    }
+
+    /// <summary>
+    /// Validates if a price point meets minimum profitability requirements.
+    /// </summary>
+    /// <param name="sellingPrice">Final selling price</param>
+    /// <param name="costPerUnit">Cost to produce</param>
+    /// <param name="minimumMarginPercent">Minimum acceptable margin (0-1)</param>
+    /// <returns>True if price is profitable; false otherwise</returns>
+    public bool IsProfitable(decimal sellingPrice, decimal costPerUnit, decimal minimumMarginPercent)
+    {
+        if (sellingPrice <= 0 || costPerUnit < 0 || minimumMarginPercent < 0)
+        {
+            _logger?.Warning("Invalid profitability parameters: Price={Price}, Cost={Cost}, MinMargin={Margin}",
+                sellingPrice, costPerUnit, minimumMarginPercent);
+            return false;
+        }
+
+        var actualMargin = (sellingPrice - costPerUnit) / sellingPrice;
+        var isProfitable = actualMargin >= minimumMarginPercent;
+
+        _logger?.Debug("Profitability check: Price={Price}, Cost={Cost}, ActualMargin={Actual:P}, MinMargin={Min:P}, Result={Result}",
+            sellingPrice, costPerUnit, actualMargin, minimumMarginPercent, isProfitable);
+
+        return isProfitable;
+    }
+
+    /// <summary>
+    /// Rounds a price to match psychological pricing patterns common in retail.
+    /// Uses locale-specific rounding preferences if available.
+    /// </summary>
+    /// <param name="price">Price to apply psychological rounding</param>
+    /// <param name="locale">Optional locale for culture-specific rounding (e.g., "en-US", "id-ID")</param>
+    /// <returns>Price with psychological pricing applied</returns>
+    public decimal ApplyPsychologicalPricing(decimal price, string? locale = null)
+    {
+        _logger?.Debug("Applying psychological pricing to {Price:C} with locale {Locale}", price, locale ?? "default");
+
+        // Different cultures prefer different pricing endings
+        decimal psychPrice = locale?.ToLowerInvariant() switch
+        {
+            "en-us" or "en-gb" or "en-au" => 
+                // English-speaking markets prefer .99 pricing
+                ApplyCharmPricing(price),
+            
+            "id-id" or "id-idn" => 
+                // Indonesian market often uses .500 (half-prices)
+                RoundUp(price, "0.50") - 0.01m,
+            
+            "ja-jp" => 
+                // Japanese market prefers prices ending in 8 or 9
+                RoundUp(price, "1.00") - 0.10m,
+            
+            "de-de" or "de-at" => 
+                // German market prefers .99 but also respects round numbers
+                ApplyCharmPricing(price),
+            
+            _ => 
+                // Default: Apply charm pricing
+                ApplyCharmPricing(price)
+        };
+
+        _logger?.Debug("Psychological pricing result: {Original:C} -> {Result:C} for locale {Locale}",
+            price, psychPrice, locale ?? "default");
+
+        return psychPrice;
+    }
+
+    /// <summary>
+    /// Provides comprehensive rounding analysis for decision making.
+    /// Shows impact of different rounding strategies on profit and appeal.
+    /// </summary>
+    /// <param name="costPerUnit">Unit production cost</param>
+    /// <param name="targetSellingPrice">Initial calculated selling price</param>
+    /// <returns>Analysis object with multiple perspectives</returns>
+    public (decimal Standard, decimal RoundedUp, decimal RoundedDown, decimal Charm, decimal Optimized) GetComprehensiveAnalysis(
+        decimal costPerUnit, 
+        decimal targetSellingPrice)
+    {
+        _logger?.Debug("Comprehensive rounding analysis: Cost={Cost:C}, TargetPrice={Target:C}",
+            costPerUnit, targetSellingPrice);
+
+        var standard = Math.Round(targetSellingPrice, 2, System.MidpointRounding.ToEven);
+        var roundedUp = RoundUp(targetSellingPrice, "0.05");
+        var roundedDown = RoundDown(targetSellingPrice, "0.05");
+        var charm = ApplyCharmPricing(targetSellingPrice);
+        var optimized = ApplyIntelligentRounding(targetSellingPrice, 0.25m, costPerUnit * 1.10m);
+
+        _logger?.Debug("Rounding analysis complete: Standard={S:C}, Up={U:C}, Down={D:C}, Charm={C:C}, Optimized={O:C}",
+            standard, roundedUp, roundedDown, charm, optimized);
+
+        return (standard, roundedUp, roundedDown, charm, optimized);
+    }
+
+    /// <summary>
+    /// Batch applies rounding to multiple prices with consistent strategy.
+    /// </summary>
+    /// <param name="prices">Collection of prices to round</param>
+    /// <param name="roundingInterval">Interval to round to</param>
+    /// <param name="roundDirection">Direction: "up", "down", or "nearest"</param>
+    /// <returns>Dictionary of original to rounded prices</returns>
+    public Dictionary<decimal, decimal> ApplyBatchRounding(
+        IEnumerable<decimal> prices, 
+        string roundingInterval,
+        string roundDirection = "nearest")
+    {
+        var results = new Dictionary<decimal, decimal>();
+        var direction = roundDirection.ToLowerInvariant();
+
+        foreach (var price in prices)
+        {
+            decimal roundedPrice = direction switch
+            {
+                "up" => RoundUp(price, roundingInterval),
+                "down" => RoundDown(price, roundingInterval),
+                _ => ApplyRounding(price, roundingInterval)
+            };
+
+            results[price] = roundedPrice;
+        }
+
+        _logger?.Debug("Applied batch rounding to {Count} prices using {Direction} direction with interval {Interval}",
+            results.Count, roundDirection, roundingInterval);
+
+        return results;
+    }
 }
 
 /// <summary>
@@ -379,229 +602,6 @@ public class CurrencyRoundingHelper
     public Dictionary<string, decimal> GetAllRules()
     {
         return new Dictionary<string, decimal>(_currencyRoundingRules);
-    }
-
-    /// <summary>
-    /// Advanced rounding strategy that combines multiple algorithms to find optimal price point.
-    /// Considers psychological pricing, competitor pricing windows, and profit margins.
-    /// </summary>
-    /// <param name="basePrice">The calculated base price before rounding</param>
-    /// <param name="targetMarginPercent">Desired profit margin percentage</param>
-    /// <param name="minAcceptablePrice">Minimum acceptable price (floor for profit)</param>
-    /// <returns>Optimized price that balances appeal with profitability</returns>
-    public decimal ApplyIntelligentRounding(decimal basePrice, decimal targetMarginPercent, decimal minAcceptablePrice)
-    {
-        _logger?.Debug("Applying intelligent rounding: BasePrice={Base}, TargetMargin={Margin}%, MinPrice={Min}",
-            basePrice, targetMarginPercent, minAcceptablePrice);
-
-        // Strategy 1: Try charm pricing first
-        var charmPrice = ApplyCharmPricing(basePrice);
-        if (charmPrice >= minAcceptablePrice)
-        {
-            _logger?.Debug("Intelligent rounding selected charm price: {Price:C}", charmPrice);
-            return charmPrice;
-        }
-
-        // Strategy 2: Try standard rounding with common intervals
-        var commonIntervals = new[] { 0.01m, 0.05m, 0.10m, 0.50m, 1.00m };
-        foreach (var interval in commonIntervals)
-        {
-            var roundedPrice = RoundUp(basePrice, interval);
-            if (roundedPrice >= minAcceptablePrice)
-            {
-                _logger?.Debug("Intelligent rounding selected standard interval {Interval}: {Price:C}", interval, roundedPrice);
-                return roundedPrice;
-            }
-        }
-
-        // Fallback: Use base price if all strategies fail
-        _logger?.Warning("Intelligent rounding fallback: all strategies below minimum. Using base price: {Price:C}", basePrice);
-        return basePrice;
-    }
-
-    /// <summary>
-    /// Calculates the markdown from original price to achieve target selling price.
-    /// Useful for promotional pricing and discount calculations.
-    /// </summary>
-    /// <param name="originalPrice">Original selling price</param>
-    /// <param name="targetPrice">Desired selling price</param>
-    /// <returns>Markdown percentage (0-1, negative if price increased)</returns>
-    public decimal CalculateMarkdownPercent(decimal originalPrice, decimal targetPrice)
-    {
-        if (originalPrice <= 0)
-        {
-            _logger?.Warning("Invalid original price for markdown calculation: {Price}", originalPrice);
-            return 0m;
-        }
-
-        var markdown = (originalPrice - targetPrice) / originalPrice;
-        _logger?.Debug("Markdown from {Original} to {Target}: {Percent:P}", originalPrice, targetPrice, markdown);
-        return markdown;
-    }
-
-    /// <summary>
-    /// Gets rounding recommendations based on retail best practices.
-    /// Returns prices optimized for different sales channels and strategies.
-    /// </summary>
-    /// <param name="costPerUnit">Cost to produce one unit</param>
-    /// <param name="targetMarginPercent">Desired profit margin (0-1)</param>
-    /// <returns>Dictionary of strategy names to recommended prices</returns>
-    public Dictionary<string, decimal> GetRetailRecommendations(decimal costPerUnit, decimal targetMarginPercent)
-    {
-        if (costPerUnit < 0 || targetMarginPercent < 0 || targetMarginPercent > 1)
-        {
-            _logger?.Warning("Invalid parameters for retail recommendations: Cost={Cost}, Margin={Margin}",
-                costPerUnit, targetMarginPercent);
-            return new Dictionary<string, decimal>();
-        }
-
-        var recommendations = new Dictionary<string, decimal>();
-
-        // Premium strategy: Higher margin, charm pricing
-        var premiumBase = costPerUnit / (1 - targetMarginPercent - 0.15m);
-        recommendations["Premium (Charm)"] = ApplyCharmPricing(premiumBase);
-
-        // Standard strategy: Target margin with standard rounding
-        var standardBase = costPerUnit / (1 - targetMarginPercent);
-        recommendations["Standard (Rounded)"] = RoundUp(standardBase, 0.05m);
-
-        // Value strategy: Lower margin, bulk appeal
-        var valueBase = costPerUnit / (1 - (targetMarginPercent * 0.75m));
-        recommendations["Value (Low Margin)"] = RoundDown(valueBase, 0.10m);
-
-        // Competitive strategy: Aggressive pricing for market penetration
-        var competitiveBase = costPerUnit / (1 - (targetMarginPercent * 0.50m));
-        recommendations["Competitive (Aggressive)"] = RoundUp(competitiveBase, 0.01m);
-
-        _logger?.Debug("Generated {Count} retail pricing recommendations for unit cost {Cost}", 
-            recommendations.Count, costPerUnit);
-
-        return recommendations;
-    }
-
-    /// <summary>
-    /// Validates if a price point meets minimum profitability requirements.
-    /// </summary>
-    /// <param name="sellingPrice">Final selling price</param>
-    /// <param name="costPerUnit">Cost to produce</param>
-    /// <param name="minimumMarginPercent">Minimum acceptable margin (0-1)</param>
-    /// <returns>True if price is profitable; false otherwise</returns>
-    public bool IsProfitable(decimal sellingPrice, decimal costPerUnit, decimal minimumMarginPercent)
-    {
-        if (sellingPrice <= 0 || costPerUnit < 0 || minimumMarginPercent < 0)
-        {
-            _logger?.Warning("Invalid profitability parameters: Price={Price}, Cost={Cost}, MinMargin={Margin}",
-                sellingPrice, costPerUnit, minimumMarginPercent);
-            return false;
-        }
-
-        var actualMargin = (sellingPrice - costPerUnit) / sellingPrice;
-        var isProfitable = actualMargin >= minimumMarginPercent;
-
-        _logger?.Debug("Profitability check: Price={Price}, Cost={Cost}, ActualMargin={Actual:P}, MinMargin={Min:P}, Result={Result}",
-            sellingPrice, costPerUnit, actualMargin, minimumMarginPercent, isProfitable);
-
-        return isProfitable;
-    }
-
-    /// <summary>
-    /// Rounds a price to match psychological pricing patterns common in retail.
-    /// Uses locale-specific rounding preferences if available.
-    /// </summary>
-    /// <param name="price">Price to apply psychological rounding</param>
-    /// <param name="locale">Optional locale for culture-specific rounding (e.g., "en-US", "id-ID")</param>
-    /// <returns>Price with psychological pricing applied</returns>
-    public decimal ApplyPsychologicalPricing(decimal price, string? locale = null)
-    {
-        _logger?.Debug("Applying psychological pricing to {Price} with locale {Locale}", price, locale ?? "default");
-
-        // Different cultures prefer different pricing endings
-        decimal psychPrice = locale?.ToLowerInvariant() switch
-        {
-            "en-us" or "en-gb" or "en-au" => 
-                // English-speaking markets prefer .99 pricing
-                ApplyCharmPricing(price),
-            
-            "id-id" or "id-idn" => 
-                // Indonesian market often uses .500 (half-prices)
-                RoundUp(price, 0.50m) - 0.01m,
-            
-            "ja-jp" => 
-                // Japanese market prefers prices ending in 8 or 9
-                RoundUp(price, 1m) - 0.10m,
-            
-            "de-de" or "de-at" => 
-                // German market prefers .99 but also respects round numbers
-                ApplyCharmPricing(price),
-            
-            _ => 
-                // Default: Apply charm pricing
-                ApplyCharmPricing(price)
-        };
-
-        _logger?.Debug("Psychological pricing result: {Original} -> {Result} for locale {Locale}",
-            price, psychPrice, locale ?? "default");
-
-        return psychPrice;
-    }
-
-    /// <summary>
-    /// Provides comprehensive rounding analysis for decision making.
-    /// Shows impact of different rounding strategies on profit and appeal.
-    /// </summary>
-    /// <param name="costPerUnit">Unit production cost</param>
-    /// <param name="targetSellingPrice">Initial calculated selling price</param>
-    /// <returns>Analysis object with multiple perspectives</returns>
-    public (decimal Standard, decimal RoundedUp, decimal RoundedDown, decimal Charm, decimal Optimized) GetComprehensiveAnalysis(
-        decimal costPerUnit, 
-        decimal targetSellingPrice)
-    {
-        _logger?.Debug("Comprehensive rounding analysis: Cost={Cost}, TargetPrice={Target}",
-            costPerUnit, targetSellingPrice);
-
-        var standard = Math.Round(targetSellingPrice, 2, System.MidpointRounding.ToEven);
-        var roundedUp = RoundUp(targetSellingPrice, 0.05m);
-        var roundedDown = RoundDown(targetSellingPrice, 0.05m);
-        var charm = ApplyCharmPricing(targetSellingPrice);
-        var optimized = ApplyIntelligentRounding(targetSellingPrice, 0.25m, costPerUnit * 1.10m);
-
-        _logger?.Debug("Rounding analysis complete: Standard={S}, Up={U}, Down={D}, Charm={C}, Optimized={O}",
-            standard, roundedUp, roundedDown, charm, optimized);
-
-        return (standard, roundedUp, roundedDown, charm, optimized);
-    }
-
-    /// <summary>
-    /// Batch applies rounding to multiple prices with consistent strategy.
-    /// </summary>
-    /// <param name="prices">Collection of prices to round</param>
-    /// <param name="roundingInterval">Interval to round to</param>
-    /// <param name="roundDirection">Direction: "up", "down", or "nearest"</param>
-    /// <returns>Dictionary of original to rounded prices</returns>
-    public Dictionary<decimal, decimal> ApplyBatchRounding(
-        IEnumerable<decimal> prices, 
-        decimal roundingInterval,
-        string roundDirection = "nearest")
-    {
-        var results = new Dictionary<decimal, decimal>();
-        var direction = roundDirection.ToLowerInvariant();
-
-        foreach (var price in prices)
-        {
-            decimal roundedPrice = direction switch
-            {
-                "up" => RoundUp(price, roundingInterval),
-                "down" => RoundDown(price, roundingInterval),
-                _ => ApplyRounding(price, roundingInterval)
-            };
-
-            results[price] = roundedPrice;
-        }
-
-        _logger?.Debug("Applied batch rounding to {Count} prices using {Direction} direction with interval {Interval}",
-            results.Count, roundDirection, roundingInterval);
-
-        return results;
     }
 }
 

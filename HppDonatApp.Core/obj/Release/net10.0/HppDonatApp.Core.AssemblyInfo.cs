@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HppDonatApp.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e7c39095e8112511ef366dad728209fd2a976f41")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5f87e71a7aeccc0594a9cb19bf309cc5b7374ef9")]
 [assembly: System.Reflection.AssemblyProductAttribute("HppDonatApp.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HppDonatApp.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
