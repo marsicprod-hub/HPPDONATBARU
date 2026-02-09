@@ -1,0 +1,53 @@
+# Visual Studio
+.vs/
+.vscode/
+*.sln.iml
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# Local database
+*.db
+*.db-journal
+HppDonatApp/Data/*.db
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node/NPM
+node_modules/
+npm-debug.log
+
+# Environment
+.env
+.env.local
+
+# NuGet
+.nuget/
+
+# Coverage
+coverage/
+*.lcov
+
+# Misc
+.editorconfig
+launchSettings.json

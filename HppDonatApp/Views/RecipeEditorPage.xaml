@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="HppDonatApp.Views.RecipeEditorPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:HppDonatApp.Views"
+    Title="Editor Resep">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" 
+            Text="Editor Resep Donat" 
+            Style="{StaticResource TitleTextBlockStyle}"/>
+
+        <!-- Recipe Basic Info -->
+        <Border Grid.Row="1" 
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1" CornerRadius="8" Padding="16">
+            <Grid ColumnSpacing="16" RowSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Nama Resep" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,8"/>
+                    <TextBox x:Name="RecipeNameInput" 
+                        Text="{x:Bind ViewModel.CurrentRecipe.RecipeName, Mode=TwoWay}"
+                        PlaceholderText="Masukkan nama resep"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Deskripsi" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,8"/>
+                    <TextBox x:Name="RecipeDescInput" 
+                        Text="{x:Bind ViewModel.CurrentRecipe.Description, Mode=TwoWay}"
+                        PlaceholderText="Deskripsi resep"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Kategori" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,8"/>
+                    <ComboBox x:Name="CategoryCombo" 
+                        ItemsSource="{x:Bind ViewModel.Categories, Mode=OneWay}"
+                        SelectedItem="{x:Bind ViewModel.CurrentRecipe.Category, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1">
+                    <TextBlock Text="Jumlah Per Batch (pcs)" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,8"/>
+                    <NumberBox x:Name="QuantityInput" 
+                        Value="{x:Bind ViewModel.CurrentRecipe.DonutsPerBatch, Mode=TwoWay}"
+                        Minimum="1" Maximum="1000" SpinButtonPlacementMode="Inline"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="1">
+                    <TextBlock Text="Waktu Persiapan (jam)" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,8"/>
+                    <NumberBox x:Name="PrepTimeInput" 
+                        Value="{x:Bind ViewModel.CurrentRecipe.PreparationTimeHours, Mode=TwoWay}"
+                        Minimum="0" Maximum="24" SpinButtonPlacementMode="Inline"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="2">
+                    <TextBlock Text="Target Margin (%)" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,8"/>
+                    <NumberBox x:Name="MarginInput" 
+                        Value="{x:Bind ViewModel.CurrentRecipe.TargetMarginPercent, Mode=TwoWay}"
+                        Minimum="0" Maximum="500" SpinButtonPlacementMode="Inline"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="2">
+                    <TextBlock Text="Notas Khusus" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,8"/>
+                    <TextBox x:Name="NotesInput" 
+                        Text="{x:Bind ViewModel.CurrentRecipe.Notes, Mode=TwoWay}"
+                        PlaceholderText="Catatan khusus untuk resep ini..."
+                        AcceptsReturn="True" Height="60"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Ingredients Section -->
+        <StackPanel Grid.Row="2" Spacing="8">
+            <TextBlock Text="Bahan-Bahan" Style="{StaticResource SubheaderTextBlockStyle}"/>
+            <CommandBar DefaultLabelPosition="Right">
+                <AppBarButton Icon="Add" Label="Tambah Bahan" Command="{x:Bind ViewModel.AddIngredientCommand}"/>
+                <AppBarButton Icon="Delete" Label="Hapus Bahan" Command="{x:Bind ViewModel.RemoveIngredientCommand}"/>
+            </CommandBar>
+        </StackPanel>
+
+        <!-- Ingredients List -->
+        <ListView Grid.Row="3" 
+            x:Name="IngredientsListView"
+            ItemsSource="{x:Bind ViewModel.RecipeIngredients, Mode=OneWay}"
+            SelectionMode="Single"
+            SelectionChanged="{x:Bind ViewModel.OnIngredientSelected}">
+            <ListView.HeaderTemplate>
+                <DataTemplate>
+                    <Grid Padding="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="80"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Bahan" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Text="Qty" FontWeight="Bold" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="Satuan" FontWeight="Bold" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="3" Text="Harga/Satuan" FontWeight="Bold" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="4" Text="Total" FontWeight="Bold" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="5" Text="%" FontWeight="Bold" Margin="8,0,0,0"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.HeaderTemplate>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local:RecipeIngredientViewModel">
+                    <Grid Padding="12" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="80"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{x:Bind IngredientName}" Style="{StaticResource BodyTextBlockStyle}" FontWeight="Bold"/>
+                            <TextBlock Text="{x:Bind IngredientCode}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                        
+                        <NumberBox Grid.Column="1" 
+                            Value="{x:Bind Quantity, Mode=TwoWay}"
+                            Minimum="0" SpinButtonPlacementMode="Inline" Margin="8,0,0,0"/>
+                        
+                        <TextBlock Grid.Column="2" Text="{x:Bind UnitOfMeasure}" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="3" Text="{x:Bind UnitPrice}" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="4" Text="{x:Bind TotalCost}" Margin="8,0,0,0"/>
+                        <ProgressBar Grid.Column="5" Value="{x:Bind PercentageOfTotal}" Margin="8,0,0,0"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <!-- Summary and Actions -->
+        <Grid Grid.Row="4" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Cost Summary -->
+            <StackPanel Spacing="8">
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                    BorderThickness="1" CornerRadius="8" Padding="16">
+                    <Grid ColumnSpacing="24">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <StackPanel>
+                            <TextBlock Text="Total HPP" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="TotalCostDisplay" Text="Rp 0" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="HPP/Donat" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="CostPerUnitDisplay" Text="Rp 0" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Harga Rekomendasi" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="RecommendedPriceDisplay" Text="Rp 0" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="3">
+                            <TextBlock Text="Proyeksi Margin" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="MarginDisplay" Text="0%" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+
+            <!-- Action Buttons -->
+            <StackPanel Orientation="Horizontal" Spacing="8" Grid.Column="1">
+                <Button Command="{x:Bind ViewModel.CalculateCommand}" Content="Hitung Ulang" Style="{StaticResource AccentButtonStyle}"/>
+                <Button Command="{x:Bind ViewModel.SaveCommand}" Content="Simpan Resep"/>
+                <Button Command="{x:Bind ViewModel.CancelCommand}" Content="Batal"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>
