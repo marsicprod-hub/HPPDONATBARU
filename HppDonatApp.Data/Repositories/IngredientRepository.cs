@@ -382,6 +382,7 @@ public class IngredientRepository : IIngredientRepository
                 var priceHistory = new PriceHistoryEntity
                 {
                     IngredientId = entity.Id,
+                    Ingredient = entity,
                     Price = ingredient.CurrentPrice,
                     RecordedDate = DateTime.UtcNow,
                     Notes = "Initial price"
@@ -612,6 +613,7 @@ public class IngredientRepository : IIngredientRepository
             var priceHistory = new PriceHistoryEntity
             {
                 IngredientId = ingredientId,
+                Ingredient = ingredient,
                 Price = price,
                 RecordedDate = DateTime.UtcNow,
                 Notes = notes

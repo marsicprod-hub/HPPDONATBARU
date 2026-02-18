@@ -184,6 +184,18 @@ public class RecipeEditorViewModel : ViewModelBase
         set => SetProperty(ref _oilPricePerLiter, Math.Max(0, value));
     }
 
+    public decimal OilChangeCost
+    {
+        get => _oilChangeCost;
+        set => SetProperty(ref _oilChangeCost, Math.Max(0, value));
+    }
+
+    public int BatchesPerOilChange
+    {
+        get => _batchesPerOilChange;
+        set => SetProperty(ref _batchesPerOilChange, Math.Max(1, value));
+    }
+
     public decimal Markup
     {
         get => _markup;
@@ -266,17 +278,17 @@ public class RecipeEditorViewModel : ViewModelBase
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
 
         // Initialize commands
-        LoadRecipesCommand = new AsyncRelayCommand(LoadRecipesAsync, logger: Logger);
+        LoadRecipesCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(LoadRecipesAsync, logger: Logger);
         NewRecipeCommand = new RelayCommand(NewRecipe);
-        SaveRecipeCommand = new AsyncRelayCommand(SaveRecipeAsync, CanSaveRecipe, Logger);
-        DeleteRecipeCommand = new AsyncRelayCommand(DeleteRecipeAsync, CanDeleteRecipe, Logger);
-        AddIngredientCommand = new AsyncRelayCommand(AddIngredientAsync, CanAddIngredient, Logger);
-        RemoveIngredientCommand = new AsyncRelayCommand(RemoveIngredientAsync, CanRemoveIngredient, Logger);
-        UpdateIngredientQuantityCommand = new AsyncRelayCommand(UpdateIngredientQuantityAsync, logger: Logger);
-        CalculateBatchCostCommand = new AsyncRelayCommand(CalculateBatchCostAsync, CanCalculateCost, Logger);
-        AddLaborRoleCommand = new AsyncRelayCommand(AddLaborRoleAsync, CanAddLaborRole, Logger);
-        RemoveLaborRoleCommand = new AsyncRelayCommand(RemoveLaborRoleAsync, CanRemoveLaborRole, Logger);
-        ExportRecipeCommand = new AsyncRelayCommand(ExportRecipeAsync, logger: Logger);
+        SaveRecipeCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(SaveRecipeAsync, CanSaveRecipe, Logger);
+        DeleteRecipeCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(DeleteRecipeAsync, CanDeleteRecipe, Logger);
+        AddIngredientCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(AddIngredientAsync, CanAddIngredient, Logger);
+        RemoveIngredientCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(RemoveIngredientAsync, CanRemoveIngredient, Logger);
+        UpdateIngredientQuantityCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(UpdateIngredientQuantityAsync, logger: Logger);
+        CalculateBatchCostCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(CalculateBatchCostAsync, CanCalculateCost, Logger);
+        AddLaborRoleCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(AddLaborRoleAsync, CanAddLaborRole, Logger);
+        RemoveLaborRoleCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(RemoveLaborRoleAsync, CanRemoveLaborRole, Logger);
+        ExportRecipeCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(ExportRecipeAsync, logger: Logger);
         ShowParametersCommand = new RelayCommand(() => ShowCalculationPanel = !ShowCalculationPanel);
 
         LoadSettings();

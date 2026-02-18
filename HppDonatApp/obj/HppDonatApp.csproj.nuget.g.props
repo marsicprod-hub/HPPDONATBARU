@@ -4,22 +4,36 @@
     <RestoreSuccess Condition=" '$(RestoreSuccess)' == '' ">True</RestoreSuccess>
     <RestoreTool Condition=" '$(RestoreTool)' == '' ">NuGet</RestoreTool>
     <ProjectAssetsFile Condition=" '$(ProjectAssetsFile)' == '' ">$(MSBuildThisFileDirectory)project.assets.json</ProjectAssetsFile>
-    <NuGetPackageRoot Condition=" '$(NuGetPackageRoot)' == '' ">/home/codespace/.nuget/packages/</NuGetPackageRoot>
-    <NuGetPackageFolders Condition=" '$(NuGetPackageFolders)' == '' ">/home/codespace/.nuget/packages/</NuGetPackageFolders>
+    <NuGetPackageRoot Condition=" '$(NuGetPackageRoot)' == '' ">$(UserProfile)\.nuget\packages\</NuGetPackageRoot>
+    <NuGetPackageFolders Condition=" '$(NuGetPackageFolders)' == '' ">C:\Users\hazel\.nuget\packages\;C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages</NuGetPackageFolders>
     <NuGetProjectStyle Condition=" '$(NuGetProjectStyle)' == '' ">PackageReference</NuGetProjectStyle>
     <NuGetToolVersion Condition=" '$(NuGetToolVersion)' == '' ">7.0.0</NuGetToolVersion>
   </PropertyGroup>
   <ItemGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
-    <SourceRoot Include="/home/codespace/.nuget/packages/" />
+    <SourceRoot Include="C:\Users\hazel\.nuget\packages\" />
+    <SourceRoot Include="C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages\" />
   </ItemGroup>
   <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
-    <Import Project="$(NuGetPackageRoot)microsoft.windows.sdk.buildtools/10.0.22621.756/buildTransitive/Microsoft.Windows.SDK.BuildTools.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windows.sdk.buildtools/10.0.22621.756/buildTransitive/Microsoft.Windows.SDK.BuildTools.props')" />
-    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk/1.6.240923002/buildTransitive/Microsoft.WindowsAppSDK.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk/1.6.240923002/buildTransitive/Microsoft.WindowsAppSDK.props')" />
-    <Import Project="$(NuGetPackageRoot)microsoft.extensions.configuration.usersecrets/10.0.0/buildTransitive/net8.0/Microsoft.Extensions.Configuration.UserSecrets.props" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.configuration.usersecrets/10.0.0/buildTransitive/net8.0/Microsoft.Extensions.Configuration.UserSecrets.props')" />
-    <Import Project="$(NuGetPackageRoot)microsoft.entityframeworkcore/10.0.0/buildTransitive/net10.0/Microsoft.EntityFrameworkCore.props" Condition="Exists('$(NuGetPackageRoot)microsoft.entityframeworkcore/10.0.0/buildTransitive/net10.0/Microsoft.EntityFrameworkCore.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windows.sdk.buildtools.msix\1.7.251221100\buildTransitive\Microsoft.Windows.SDK.BuildTools.MSIX.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windows.sdk.buildtools.msix\1.7.251221100\buildTransitive\Microsoft.Windows.SDK.BuildTools.MSIX.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windows.sdk.buildtools\10.0.26100.4654\buildTransitive\Microsoft.Windows.SDK.BuildTools.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windows.sdk.buildtools\10.0.26100.4654\buildTransitive\Microsoft.Windows.SDK.BuildTools.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.base\2.0.2-preview\buildTransitive\Microsoft.WindowsAppSDK.Base.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.base\2.0.2-preview\buildTransitive\Microsoft.WindowsAppSDK.Base.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.interactiveexperiences\2.0.6-preview\buildTransitive\Microsoft.WindowsAppSDK.InteractiveExperiences.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.interactiveexperiences\2.0.6-preview\buildTransitive\Microsoft.WindowsAppSDK.InteractiveExperiences.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.foundation\2.0.15-preview\buildTransitive\Microsoft.WindowsAppSDK.Foundation.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.foundation\2.0.15-preview\buildTransitive\Microsoft.WindowsAppSDK.Foundation.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.winui\2.0.7-preview\buildTransitive\Microsoft.WindowsAppSDK.WinUI.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.winui\2.0.7-preview\buildTransitive\Microsoft.WindowsAppSDK.WinUI.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.widgets\2.0.3-preview\buildTransitive\Microsoft.WindowsAppSDK.Widgets.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.widgets\2.0.3-preview\buildTransitive\Microsoft.WindowsAppSDK.Widgets.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.ai\2.0.4-preview\buildTransitive\Microsoft.WindowsAppSDK.AI.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.ai\2.0.4-preview\buildTransitive\Microsoft.WindowsAppSDK.AI.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.search\2.0.4-preview\buildTransitive\Microsoft.WindowsAppSDK.Search.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.search\2.0.4-preview\buildTransitive\Microsoft.WindowsAppSDK.Search.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.runtime\2.0.0-preview1\buildTransitive\Microsoft.WindowsAppSDK.Runtime.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.runtime\2.0.0-preview1\buildTransitive\Microsoft.WindowsAppSDK.Runtime.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.ml\2.0.175-preview\buildTransitive\Microsoft.WindowsAppSDK.ML.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.ml\2.0.175-preview\buildTransitive\Microsoft.WindowsAppSDK.ML.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk.dwrite\2.0.1-preview\buildTransitive\Microsoft.WindowsAppSDK.DWrite.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk.dwrite\2.0.1-preview\buildTransitive\Microsoft.WindowsAppSDK.DWrite.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk\2.0.0-preview1\buildTransitive\Microsoft.WindowsAppSDK.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk\2.0.0-preview1\buildTransitive\Microsoft.WindowsAppSDK.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.extensions.configuration.usersecrets\10.0.0\buildTransitive\net8.0\Microsoft.Extensions.Configuration.UserSecrets.props" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.configuration.usersecrets\10.0.0\buildTransitive\net8.0\Microsoft.Extensions.Configuration.UserSecrets.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.entityframeworkcore\10.0.0\buildTransitive\net10.0\Microsoft.EntityFrameworkCore.props" Condition="Exists('$(NuGetPackageRoot)microsoft.entityframeworkcore\10.0.0\buildTransitive\net10.0\Microsoft.EntityFrameworkCore.props')" />
   </ImportGroup>
   <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
-    <PkgMicrosoft_Web_WebView2 Condition=" '$(PkgMicrosoft_Web_WebView2)' == '' ">/home/codespace/.nuget/packages/microsoft.web.webview2/1.0.2651.64</PkgMicrosoft_Web_WebView2>
-    <PkgMicrosoft_WindowsAppSDK Condition=" '$(PkgMicrosoft_WindowsAppSDK)' == '' ">/home/codespace/.nuget/packages/microsoft.windowsappsdk/1.6.240923002</PkgMicrosoft_WindowsAppSDK>
+    <PkgMicrosoft_Windows_SDK_BuildTools_MSIX Condition=" '$(PkgMicrosoft_Windows_SDK_BuildTools_MSIX)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.windows.sdk.buildtools.msix\1.7.251221100</PkgMicrosoft_Windows_SDK_BuildTools_MSIX>
+    <PkgMicrosoft_Web_WebView2 Condition=" '$(PkgMicrosoft_Web_WebView2)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.web.webview2\1.0.3405.78</PkgMicrosoft_Web_WebView2>
+    <PkgMicrosoft_WindowsAppSDK_WinUI Condition=" '$(PkgMicrosoft_WindowsAppSDK_WinUI)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.windowsappsdk.winui\2.0.7-preview</PkgMicrosoft_WindowsAppSDK_WinUI>
+    <PkgMicrosoft_WindowsAppSDK_Runtime Condition=" '$(PkgMicrosoft_WindowsAppSDK_Runtime)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.windowsappsdk.runtime\2.0.0-preview1</PkgMicrosoft_WindowsAppSDK_Runtime>
   </PropertyGroup>
 </Project>

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Xunit;
 using FluentAssertions;
 using Moq;
@@ -20,7 +22,6 @@ public class PricingEngineTests
     {
         _logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.Console()
             .CreateLogger();
 
         _pricingEngine = new PricingEngine(
@@ -352,7 +353,7 @@ public class PricingEngineTests
     /// Verifies that all monetary calculations use proper precision.
     /// </summary>
     [Fact]
-    public void CalculateBatchCost_MonetaryPrecision_MaintainedToTwoDe cimals()
+    public void CalculateBatchCost_MonetaryPrecision_MaintainedToTwoDecimals()
     {
         // Arrange
         var request = new BatchRequest
@@ -403,7 +404,6 @@ public class PricingStrategyTests
     {
         _logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
-            .WriteTo.Console()
             .CreateLogger();
     }
 

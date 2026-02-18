@@ -26,6 +26,22 @@
           "lib/net6.0/Castle.Core.dll": {}
         }
       },
+      "CommunityToolkit.Mvvm/8.2.2": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/CommunityToolkit.Mvvm.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/CommunityToolkit.Mvvm.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "build": {
+          "buildTransitive/netstandard2.1/CommunityToolkit.Mvvm.targets": {}
+        }
+      },
       "coverlet.collector/6.0.0": {
         "type": "package",
         "build": {
@@ -922,6 +938,7 @@
         "framework": ".NETCoreApp,Version=v10.0",
         "dependencies": {
           "AutoMapper": "13.0.1",
+          "CommunityToolkit.Mvvm": "8.2.2",
           "CsvHelper": "31.0.3",
           "HppDonatApp.Core": "1.0.0",
           "HppDonatApp.Data": "1.0.0",
@@ -970,6 +987,37 @@
         "lib/netstandard2.0/Castle.Core.dll",
         "lib/netstandard2.1/Castle.Core.dll",
         "readme.txt"
+      ]
+    },
+    "CommunityToolkit.Mvvm/8.2.2": {
+      "sha512": "r0g0k9tGYdrnz8R7T3x5UiokDffeevzK/2P/9SBL6fqLgN8B157MIi/bVUWI1KAz6ZorZrK9AdABCWUeXZZsvA==",
+      "type": "package",
+      "path": "communitytoolkit.mvvm/8.2.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "License.md",
+        "ThirdPartyNotices.txt",
+        "analyzers/dotnet/roslyn4.0/cs/CommunityToolkit.Mvvm.CodeFixers.dll",
+        "analyzers/dotnet/roslyn4.0/cs/CommunityToolkit.Mvvm.SourceGenerators.dll",
+        "analyzers/dotnet/roslyn4.3/cs/CommunityToolkit.Mvvm.CodeFixers.dll",
+        "analyzers/dotnet/roslyn4.3/cs/CommunityToolkit.Mvvm.SourceGenerators.dll",
+        "build/netstandard2.0/CommunityToolkit.Mvvm.targets",
+        "build/netstandard2.1/CommunityToolkit.Mvvm.targets",
+        "buildTransitive/netstandard2.0/CommunityToolkit.Mvvm.targets",
+        "buildTransitive/netstandard2.1/CommunityToolkit.Mvvm.targets",
+        "communitytoolkit.mvvm.8.2.2.nupkg.sha512",
+        "communitytoolkit.mvvm.nuspec",
+        "lib/net6.0/CommunityToolkit.Mvvm.dll",
+        "lib/net6.0/CommunityToolkit.Mvvm.pdb",
+        "lib/net6.0/CommunityToolkit.Mvvm.xml",
+        "lib/netstandard2.0/CommunityToolkit.Mvvm.dll",
+        "lib/netstandard2.0/CommunityToolkit.Mvvm.pdb",
+        "lib/netstandard2.0/CommunityToolkit.Mvvm.xml",
+        "lib/netstandard2.1/CommunityToolkit.Mvvm.dll",
+        "lib/netstandard2.1/CommunityToolkit.Mvvm.pdb",
+        "lib/netstandard2.1/CommunityToolkit.Mvvm.xml"
       ]
     },
     "coverlet.collector/6.0.0": {
@@ -2145,7 +2193,7 @@
       "HppDonatApp.Core >= 1.0.0",
       "HppDonatApp.Data >= 1.0.0",
       "HppDonatApp.Services >= 1.0.0",
-      "Microsoft.NET.Test.Sdk >= 17.8.2",
+      "Microsoft.NET.Test.Sdk >= 17.9.0",
       "Moq >= 4.20.70",
       "coverlet.collector >= 6.0.0",
       "xunit >= 2.7.0",
@@ -2153,38 +2201,46 @@
     ]
   },
   "packageFolders": {
-    "/home/codespace/.nuget/packages/": {}
+    "C:\\Users\\hazel\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/workspaces/HPPDONATBARU/HppDonatApp.Tests/HppDonatApp.Tests.csproj",
+      "projectUniqueName": "C:\\Users\\hazel\\source\\repos\\HPPDONATBARU\\HppDonatApp.Tests\\HppDonatApp.Tests.csproj",
       "projectName": "HppDonatApp.Tests",
-      "projectPath": "/workspaces/HPPDONATBARU/HppDonatApp.Tests/HppDonatApp.Tests.csproj",
-      "packagesPath": "/home/codespace/.nuget/packages/",
-      "outputPath": "/workspaces/HPPDONATBARU/HppDonatApp.Tests/obj/",
+      "projectPath": "C:\\Users\\hazel\\source\\repos\\HPPDONATBARU\\HppDonatApp.Tests\\HppDonatApp.Tests.csproj",
+      "packagesPath": "C:\\Users\\hazel\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\hazel\\source\\repos\\HPPDONATBARU\\HppDonatApp.Tests\\obj\\",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "/home/codespace/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\hazel\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "C:\\Program Files\\dotnet\\library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net10.0": {
           "targetAlias": "net10.0",
           "projectReferences": {
-            "/workspaces/HPPDONATBARU/HppDonatApp.Core/HppDonatApp.Core.csproj": {
-              "projectPath": "/workspaces/HPPDONATBARU/HppDonatApp.Core/HppDonatApp.Core.csproj"
+            "C:\\Users\\hazel\\source\\repos\\HPPDONATBARU\\HppDonatApp.Core\\HppDonatApp.Core.csproj": {
+              "projectPath": "C:\\Users\\hazel\\source\\repos\\HPPDONATBARU\\HppDonatApp.Core\\HppDonatApp.Core.csproj"
             },
-            "/workspaces/HPPDONATBARU/HppDonatApp.Data/HppDonatApp.Data.csproj": {
-              "projectPath": "/workspaces/HPPDONATBARU/HppDonatApp.Data/HppDonatApp.Data.csproj"
+            "C:\\Users\\hazel\\source\\repos\\HPPDONATBARU\\HppDonatApp.Data\\HppDonatApp.Data.csproj": {
+              "projectPath": "C:\\Users\\hazel\\source\\repos\\HPPDONATBARU\\HppDonatApp.Data\\HppDonatApp.Data.csproj"
             },
-            "/workspaces/HPPDONATBARU/HppDonatApp.Services/HppDonatApp.Services.csproj": {
-              "projectPath": "/workspaces/HPPDONATBARU/HppDonatApp.Services/HppDonatApp.Services.csproj"
+            "C:\\Users\\hazel\\source\\repos\\HPPDONATBARU\\HppDonatApp.Services\\HppDonatApp.Services.csproj": {
+              "projectPath": "C:\\Users\\hazel\\source\\repos\\HPPDONATBARU\\HppDonatApp.Services\\HppDonatApp.Services.csproj"
             }
           }
         }
@@ -2211,7 +2267,7 @@
           },
           "Microsoft.NET.Test.Sdk": {
             "target": "Package",
-            "version": "[17.8.2, )"
+            "version": "[17.9.0, )"
           },
           "Moq": {
             "target": "Package",
@@ -2250,7 +2306,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.103/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -2527,17 +2583,5 @@
         }
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1603",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "HppDonatApp.Tests depends on Microsoft.NET.Test.Sdk (>= 17.8.2) but Microsoft.NET.Test.Sdk 17.8.2 was not found. Microsoft.NET.Test.Sdk 17.9.0 was resolved instead.",
-      "libraryId": "Microsoft.NET.Test.Sdk",
-      "targetGraphs": [
-        "net10.0"
-      ]
-    }
-  ]
+  }
 }

@@ -245,11 +245,21 @@ public class RecipeRepository : IRecipeRepository
 
         try
         {
+            var recipe = await _context.Recipes.FindAsync(recipeId);
+            if (recipe == null || !recipe.IsActive)
+                throw new InvalidOperationException($"Recipe {recipeId} not found");
+
+            var ingredient = await _context.Ingredients.FindAsync(ingredientId);
+            if (ingredient == null || !ingredient.IsActive)
+                throw new InvalidOperationException($"Ingredient {ingredientId} not found");
+
             var entity = new RecipeIngredientEntity
             {
                 RecipeId = recipeId,
                 IngredientId = ingredientId,
-                Quantity = quantity
+                Quantity = quantity,
+                Recipe = recipe,
+                Ingredient = ingredient
             };
 
             _context.RecipeIngredients.Add(entity);

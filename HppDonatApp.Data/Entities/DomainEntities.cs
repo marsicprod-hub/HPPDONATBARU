@@ -34,7 +34,7 @@ public class PriceHistoryEntity
     public string? Notes { get; set; }
 
     // Navigation property
-    public virtual required IngredientEntity Ingredient { get; set; }
+    public virtual IngredientEntity Ingredient { get; set; } = null!;
 }
 
 /// <summary>
@@ -71,8 +71,8 @@ public class RecipeIngredientEntity
     public int DisplayOrder { get; set; } = 0; // For ordering ingredients in UI
 
     // Navigation properties
-    public virtual required RecipeEntity Recipe { get; set; }
-    public virtual required IngredientEntity Ingredient { get; set; }
+    public virtual RecipeEntity Recipe { get; set; } = null!;
+    public virtual IngredientEntity Ingredient { get; set; } = null!;
 }
 
 /// <summary>
@@ -116,7 +116,7 @@ public class ScenarioEntity
     public string LaborJson { get; set; } = "[]";
 
     // Navigation property
-    public virtual required RecipeEntity Recipe { get; set; }
+    public virtual RecipeEntity Recipe { get; set; } = null!;
     public virtual ICollection<ScenarioResultEntity> Results { get; set; } = new List<ScenarioResultEntity>();
 }
 
@@ -150,7 +150,7 @@ public class ScenarioResultEntity
     public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation property
-    public virtual required ScenarioEntity Scenario { get; set; }
+    public virtual ScenarioEntity Scenario { get; set; } = null!;
 }
 
 /// <summary>

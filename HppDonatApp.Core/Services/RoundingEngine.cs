@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Serilog;
 
@@ -87,7 +88,7 @@ public class RoundingEngine : IRoundingEngine
 
         try
         {
-            if (!decimal.TryParse(roundingRule, out var roundTo))
+            if (!decimal.TryParse(roundingRule, NumberStyles.Number, CultureInfo.InvariantCulture, out var roundTo))
             {
                 _logger?.Warning("Failed to parse rounding rule '{Rule}' to decimal", roundingRule);
                 return price;
@@ -126,7 +127,7 @@ public class RoundingEngine : IRoundingEngine
             return false;
         }
 
-        if (!decimal.TryParse(roundingRule, out var value))
+        if (!decimal.TryParse(roundingRule, NumberStyles.Number, CultureInfo.InvariantCulture, out var value))
         {
             return false;
         }
@@ -183,7 +184,7 @@ public class RoundingEngine : IRoundingEngine
     /// <returns>The rounded up price</returns>
     public decimal RoundUp(decimal price, string roundingRule)
     {
-        if (!decimal.TryParse(roundingRule, out var interval) || interval <= 0)
+        if (!decimal.TryParse(roundingRule, NumberStyles.Number, CultureInfo.InvariantCulture, out var interval) || interval <= 0)
         {
             return price;
         }
@@ -208,7 +209,7 @@ public class RoundingEngine : IRoundingEngine
     /// <returns>The rounded down price</returns>
     public decimal RoundDown(decimal price, string roundingRule)
     {
-        if (!decimal.TryParse(roundingRule, out var interval) || interval <= 0)
+        if (!decimal.TryParse(roundingRule, NumberStyles.Number, CultureInfo.InvariantCulture, out var interval) || interval <= 0)
         {
             return price;
         }

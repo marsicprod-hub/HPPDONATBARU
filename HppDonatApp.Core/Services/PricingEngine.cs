@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -465,7 +466,7 @@ public class PricingEngine : IPricingEngine
             return price;
         }
 
-        if (!decimal.TryParse(roundingRule, out var roundTo))
+        if (!decimal.TryParse(roundingRule, NumberStyles.Number, CultureInfo.InvariantCulture, out var roundTo))
         {
             _logger?.Warning("Invalid rounding rule format: {Rule}", roundingRule);
             return price;

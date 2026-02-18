@@ -2,8 +2,13 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using HppDonatApp.Core.Services;
 using HppDonatApp.Data;
 using HppDonatApp.Data.Repositories;
@@ -60,7 +65,7 @@ public partial class App : Application
                         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
                     .CreateLogger();
 
-                services.AddSerilog();
+                services.AddSingleton<ILogger>(Log.Logger);
 
                 // Configure Database Context
                 var dbPath = GetDatabasePath();
