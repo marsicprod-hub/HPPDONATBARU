@@ -7,7 +7,9 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using HppDonatApp.Core.Services;
 using HppDonatApp.Data;
@@ -23,6 +25,18 @@ namespace HppDonatApp;
 /// </summary>
 public partial class App : Application
 {
+    private static readonly string[] RequiredTables =
+    {
+        "Ingredients",
+        "PriceHistories",
+        "Recipes",
+        "RecipeIngredients",
+        "Scenarios",
+        "ScenarioResults",
+        "Settings",
+        "AuditLogs"
+    };
+
     private IHost? _host;
     public IServiceProvider? Services { get; private set; }
 
@@ -121,7 +135,27 @@ public partial class App : Application
         using (var scope = _host.Services.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<HppDonatDbContext>();
-            await dbContext.Database.MigrateAsync();
+            var hasPendingMigrations = (await dbContext.Database.GetPendingMigrationsAsync()).Any();
+            if (hasPendingMigrations)
+            {
+                await dbContext.Database.MigrateAsync();
+            }
+            else
+            {
+                // No EF migrations are defined yet, so create schema directly from the current model.
+                await dbContext.Database.EnsureCreatedAsync();
+            }
+
+            // Handle older/incomplete local DB files that can cause "no such table" runtime errors.
+            if (await HasMissingRequiredTablesAsync(dbContext))
+            {
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger>();
+                logger.Warning("Incomplete database schema detected. Recreating local database.");
+
+                BackupDatabaseFile(logger);
+                await dbContext.Database.EnsureDeletedAsync();
+                await dbContext.Database.EnsureCreatedAsync();
+            }
             
             // Seed initial data if database is empty
             await SeedDatabaseAsync(dbContext);
@@ -129,9 +163,9 @@ public partial class App : Application
 
         Services = _host.Services;
 
-        var logger = _host.Services.GetRequiredService<ILogger>();
-        logger.Information("=== HppDonatApp Started ===");
-        logger.Information("Database initialized at: {DbPath}", GetDatabasePath());
+        var appLogger = _host.Services.GetRequiredService<ILogger>();
+        appLogger.Information("=== HppDonatApp Started ===");
+        appLogger.Information("Database initialized at: {DbPath}", GetDatabasePath());
     }
 
     /// <summary>
@@ -149,6 +183,71 @@ public partial class App : Application
         }
 
         return Path.Combine(appFolder, "hppdonat.db");
+    }
+
+    private void BackupDatabaseFile(ILogger logger)
+    {
+        var dbPath = GetDatabasePath();
+        if (!File.Exists(dbPath))
+        {
+            return;
+        }
+
+        var folder = Path.GetDirectoryName(dbPath);
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            return;
+        }
+
+        var backupName = $"hppdonat-backup-{DateTime.Now:yyyyMMdd-HHmmss}.db";
+        var backupPath = Path.Combine(folder, backupName);
+
+        try
+        {
+            File.Copy(dbPath, backupPath, overwrite: false);
+            logger.Warning("Database backup created at {BackupPath}", backupPath);
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex, "Failed to backup database file before schema recovery");
+        }
+    }
+
+    private static async Task<bool> HasMissingRequiredTablesAsync(HppDonatDbContext dbContext)
+    {
+        var existingTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var connection = dbContext.Database.GetDbConnection();
+        var wasClosed = connection.State != ConnectionState.Open;
+
+        if (wasClosed)
+        {
+            await connection.OpenAsync();
+        }
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT name FROM sqlite_master WHERE type='table'";
+
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                if (!reader.IsDBNull(0))
+                {
+                    existingTables.Add(reader.GetString(0));
+                }
+            }
+        }
+        finally
+        {
+            if (wasClosed)
+            {
+                await connection.CloseAsync();
+            }
+        }
+
+        return RequiredTables.Any(required => !existingTables.Contains(required));
     }
 
     /// <summary>

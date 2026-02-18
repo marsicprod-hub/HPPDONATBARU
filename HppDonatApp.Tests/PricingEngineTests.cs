@@ -66,6 +66,134 @@ public class PricingEngineTests
     }
 
     /// <summary>
+    /// Test: Workbook parity using MODAL_DONAT.xlsx formulas.
+    /// Verifies pack-based ingredient cost, weight-based donut count, and topping cost per donut.
+    /// </summary>
+    [Fact]
+    public void CalculateBatchCost_ModalDonatWorkbook_ParsesFormulaCorrectly()
+    {
+        // Arrange
+        var request = new BatchRequest
+        {
+            Items = new List<RecipeItem>
+            {
+                new() { IngredientId = 1, Unit = "g", Quantity = 1000m, PackNetQuantity = 1000m, PricePerPack = 17000m },
+                new() { IngredientId = 2, Unit = "g", Quantity = 140m,  PackNetQuantity = 1000m, PricePerPack = 17500m },
+                new() { IngredientId = 3, Unit = "g", Quantity = 80m,   PackNetQuantity = 250m,  PricePerPack = 27500m },
+                new() { IngredientId = 4, Unit = "g", Quantity = 15m,   PackNetQuantity = 44m,   PricePerPack = 20000m },
+                new() { IngredientId = 5, Unit = "g", Quantity = 15m,   PackNetQuantity = 500m,  PricePerPack = 45000m },
+                new() { IngredientId = 6, Unit = "g", Quantity = 10m,   PackNetQuantity = 100m,  PricePerPack = 12500m },
+                new() { IngredientId = 7, Unit = "g", Quantity = 600m,  ManualCost = 8000m },
+                new() { IngredientId = 8, Unit = "g", Quantity = 140m,  PackNetQuantity = 180m,  PricePerPack = 10000m }
+            },
+            BatchMultiplier = 1m,
+            OilUsedLiters = 1m,          // 20,000
+            OilPricePerLiter = 20000m,
+            EnergyKwh = 1m,              // 3,000
+            EnergyRatePerKwh = 3000m,
+            Labor = new List<LaborRole>
+            {
+                new() { Name = "Tenaga", Hours = 1m, HourlyRate = 10000m } // 10,000
+            },
+            OverheadAllocated = 15000m,  // Gas + Resiko (5,000 + 10,000)
+            UseWeightBasedOutput = true,
+            DonutWeightGrams = 25m,
+            WastePercent = 0m,
+            ToppingWeightPerDonutGrams = 15m,
+            ToppingPackWeightGrams = 1000m,
+            ToppingPackPrice = 70000m,
+            Markup = 0m,
+            VatPercent = 0m,
+            RoundingRule = "0.01"
+        };
+
+        // Act
+        var result = _pricingEngine.CalculateBatchCost(request);
+
+        // Assert
+        result.IngredientCost.Should().BeApproximately(53445.9596m, 0.0002m);
+        result.TotalBatchCost.Should().BeApproximately(101445.9596m, 0.0002m);
+        result.DoughWeightTotal.Should().Be(2000m);
+        result.DonutCountByWeight.Should().Be(80m);
+        result.SellableUnits.Should().Be(80);
+        result.UnitCost.Should().BeApproximately(1268.0745m, 0.0002m);
+        result.ToppingCostPerDonut.Should().Be(1050m);
+        result.CostPerDonutWithTopping.Should().BeApproximately(2318.0745m, 0.0002m);
+    }
+
+    /// <summary>
+    /// Test: Smart pricing metrics are generated for enterprise decision support.
+    /// </summary>
+    [Fact]
+    public void CalculateBatchCost_AdvancedPricingMetrics_ArePopulated()
+    {
+        // Arrange
+        var request = new BatchRequest
+        {
+            Items = new List<RecipeItem>
+            {
+                new() { IngredientId = 1, Quantity = 1200m, Unit = "g", PackNetQuantity = 1000m, PricePerPack = 18000m },
+                new() { IngredientId = 2, Quantity = 300m, Unit = "g", PackNetQuantity = 1000m, PricePerPack = 16000m },
+                new() { IngredientId = 3, Quantity = 80m, Unit = "g", ManualCost = 7000m }
+            },
+            UseWeightBasedOutput = true,
+            DonutWeightGrams = 25m,
+            OilUsedLiters = 1m,
+            OilPricePerLiter = 18000m,
+            OverheadAllocated = 12000m,
+            Markup = 0.40m,
+            VatPercent = 0.11m,
+            RoundingRule = "0.05",
+            PriceVolatilityPercent = 0.15m,
+            RiskAppetitePercent = 0.35m,
+            MarketPressurePercent = -0.05m
+        };
+
+        // Act
+        var result = _pricingEngine.CalculateBatchCost(request);
+
+        // Assert
+        result.RiskBufferPercent.Should().BeGreaterThan(0m);
+        result.MinimumSafePrice.Should().BeGreaterThan(0m);
+        result.SuggestedPriceConservative.Should().BeGreaterThanOrEqualTo(result.MinimumSafePrice);
+        result.RecommendedPriceHigh.Should().BeGreaterThanOrEqualTo(result.RecommendedPriceLow);
+        result.CostVolatilityScore.Should().BeInRange(0m, 1m);
+        result.PricingConfidenceScore.Should().BeInRange(0m, 1m);
+        result.RecommendationNote.Should().NotBeNullOrWhiteSpace();
+    }
+
+    /// <summary>
+    /// Test: Target-profit and monthly break-even planning values are computed.
+    /// </summary>
+    [Fact]
+    public void CalculateBatchCost_TargetProfitAndBreakEven_AreCalculated()
+    {
+        // Arrange
+        var request = new BatchRequest
+        {
+            Items = new List<RecipeItem>
+            {
+                new() { IngredientId = 1, Quantity = 1000m, Unit = "g", PackNetQuantity = 1000m, PricePerPack = 16000m }
+            },
+            UseWeightBasedOutput = true,
+            DonutWeightGrams = 25m,
+            Markup = 0.80m,
+            TargetProfitPerBatch = 5000m,
+            MonthlyFixedCost = 25000m,
+            RoundingRule = "0.01"
+        };
+
+        // Act
+        var result = _pricingEngine.CalculateBatchCost(request);
+
+        // Assert
+        result.ContributionMarginPerUnit.Should().BeGreaterThan(0m);
+        result.UnitsForTargetProfit.Should().BeGreaterThan(0);
+        result.MonthlyBreakEvenUnits.Should().BeGreaterThan(0);
+        result.ProfitPerBatchAtSuggestedPrice.Should().BeGreaterThan(0m);
+    }
+
+    /// <summary>
     /// Test: Cost calculation with oil and maintenance costs.
     /// Verifies that amortized oil change costs are properly divided among batches.
     /// </summary>

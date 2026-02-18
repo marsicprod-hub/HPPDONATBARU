@@ -18,16 +18,32 @@
         "type": "package",
         "compile": {
           "lib/net6.0/CommunityToolkit.Mvvm.dll": {
-            "related": ".pdb;.xml"
+            "related": ".pdb"
           }
         },
         "runtime": {
           "lib/net6.0/CommunityToolkit.Mvvm.dll": {
-            "related": ".pdb;.xml"
+            "related": ".pdb"
           }
         },
         "build": {
           "buildTransitive/netstandard2.1/CommunityToolkit.Mvvm.targets": {}
+        }
+      },
+      "CommunityToolkit.WinUI.UI.Controls.DataGrid/7.1.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK": "1.0.0"
+        },
+        "compile": {
+          "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.dll": {
+            "related": ".pdb;.pri;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.dll": {
+            "related": ".pdb;.pri;.xml"
+          }
         }
       },
       "CsvHelper/31.0.3": {
@@ -1271,16 +1287,32 @@
         "type": "package",
         "compile": {
           "lib/net6.0/CommunityToolkit.Mvvm.dll": {
-            "related": ".pdb;.xml"
+            "related": ".pdb"
           }
         },
         "runtime": {
           "lib/net6.0/CommunityToolkit.Mvvm.dll": {
-            "related": ".pdb;.xml"
+            "related": ".pdb"
           }
         },
         "build": {
           "buildTransitive/netstandard2.1/CommunityToolkit.Mvvm.targets": {}
+        }
+      },
+      "CommunityToolkit.WinUI.UI.Controls.DataGrid/7.1.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK": "1.0.0"
+        },
+        "compile": {
+          "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.dll": {
+            "related": ".pdb;.pri;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.dll": {
+            "related": ".pdb;.pri;.xml"
+          }
         }
       },
       "CsvHelper/31.0.3": {
@@ -2385,16 +2417,32 @@
         "type": "package",
         "compile": {
           "lib/net6.0/CommunityToolkit.Mvvm.dll": {
-            "related": ".pdb;.xml"
+            "related": ".pdb"
           }
         },
         "runtime": {
           "lib/net6.0/CommunityToolkit.Mvvm.dll": {
-            "related": ".pdb;.xml"
+            "related": ".pdb"
           }
         },
         "build": {
           "buildTransitive/netstandard2.1/CommunityToolkit.Mvvm.targets": {}
+        }
+      },
+      "CommunityToolkit.WinUI.UI.Controls.DataGrid/7.1.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK": "1.0.0"
+        },
+        "compile": {
+          "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.dll": {
+            "related": ".pdb;.pri;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.dll": {
+            "related": ".pdb;.pri;.xml"
+          }
         }
       },
       "CsvHelper/31.0.3": {
@@ -3499,16 +3547,32 @@
         "type": "package",
         "compile": {
           "lib/net6.0/CommunityToolkit.Mvvm.dll": {
-            "related": ".pdb;.xml"
+            "related": ".pdb"
           }
         },
         "runtime": {
           "lib/net6.0/CommunityToolkit.Mvvm.dll": {
-            "related": ".pdb;.xml"
+            "related": ".pdb"
           }
         },
         "build": {
           "buildTransitive/netstandard2.1/CommunityToolkit.Mvvm.targets": {}
+        }
+      },
+      "CommunityToolkit.WinUI.UI.Controls.DataGrid/7.1.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK": "1.0.0"
+        },
+        "compile": {
+          "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.dll": {
+            "related": ".pdb;.pri;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.dll": {
+            "related": ".pdb;.pri;.xml"
+          }
         }
       },
       "CsvHelper/31.0.3": {
@@ -4638,6 +4702,28 @@
         "lib/netstandard2.0/CommunityToolkit.Mvvm.pdb",
         "lib/netstandard2.1/CommunityToolkit.Mvvm.dll",
         "lib/netstandard2.1/CommunityToolkit.Mvvm.pdb"
+      ]
+    },
+    "CommunityToolkit.WinUI.UI.Controls.DataGrid/7.1.2": {
+      "sha512": "F73oYdYza8zhDwGHdXCZJJMeiDJ6nR97WPe180o7jOX3U90ZIqvU/GtYZdN3/x8DOS48t5GQG70LqxfyIGeaxw==",
+      "type": "package",
+      "path": "communitytoolkit.winui.ui.controls.datagrid/7.1.2",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "License.md",
+        "ThirdPartyNotices.txt",
+        "communitytoolkit.winui.ui.controls.datagrid.7.1.2.nupkg.sha512",
+        "communitytoolkit.winui.ui.controls.datagrid.nuspec",
+        "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.dll",
+        "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.pdb",
+        "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.pri",
+        "lib/net5.0-windows10.0.18362/CommunityToolkit.WinUI.UI.Controls.DataGrid.xml",
+        "lib/net5.0-windows10.0.18362/Design/CommunityToolkit.WinUI.UI.Controls.DataGrid.DesignTools.dll",
+        "lib/net5.0-windows10.0.18362/Design/CommunityToolkit.WinUI.UI.Controls.DataGrid.DesignTools.pdb",
+        "tools/VisualStudioToolsManifest.xml"
       ]
     },
     "CsvHelper/31.0.3": {
@@ -7689,6 +7775,7 @@
   },
   "projectFileDependencyGroups": {
     "net10.0-windows10.0.22621": [
+      "CommunityToolkit.WinUI.UI.Controls.DataGrid >= 7.1.2",
       "HppDonatApp.Core >= 1.0.0",
       "HppDonatApp.Data >= 1.0.0",
       "HppDonatApp.Services >= 1.0.0",
@@ -7762,6 +7849,10 @@
       "net10.0-windows10.0.22621": {
         "targetAlias": "net10.0-windows10.0.22621.0",
         "dependencies": {
+          "CommunityToolkit.WinUI.UI.Controls.DataGrid": {
+            "target": "Package",
+            "version": "[7.1.2, )"
+          },
           "Microsoft.Extensions.Configuration": {
             "target": "Package",
             "version": "[10.0.0, )"

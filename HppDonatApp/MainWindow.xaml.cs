@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Serilog;
+using HppDonatApp.Views;
 
 namespace HppDonatApp;
 
@@ -15,6 +16,9 @@ public sealed partial class MainWindow : Window
 
         // Set window properties
         this.Title = "HPP Donat Calculator - WinUI 3";
+
+        // Set RecipeEditor as the default home screen.
+        this.Content = new RecipeEditorPage();
         
         // Log window initialization
         var logger = Log.ForContext<MainWindow>();

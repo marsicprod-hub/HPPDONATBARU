@@ -69,13 +69,61 @@ public class RecipeItem
 
     /// <summary>
     /// Gets or sets the price per unit for this ingredient in this recipe context.
+    /// This is used for direct pricing mode where cost = Quantity * PricePerUnit.
     /// </summary>
     public decimal PricePerUnit { get; set; }
 
     /// <summary>
-    /// Gets the total cost of this recipe item (Quantity * PricePerUnit).
+    /// Gets or sets the net weight/volume per pack.
+    /// When set together with <see cref="PricePerPack"/>, item cost follows spreadsheet formula:
+    /// Cost = Quantity * (PricePerPack / PackNetQuantity).
     /// </summary>
-    public decimal TotalCost => Quantity * PricePerUnit;
+    public decimal? PackNetQuantity { get; set; }
+
+    /// <summary>
+    /// Gets or sets the price per pack.
+    /// Used with <see cref="PackNetQuantity"/> for pack-based calculations.
+    /// </summary>
+    public decimal? PricePerPack { get; set; }
+
+    /// <summary>
+    /// Gets or sets a manual fixed cost override for this ingredient line.
+    /// If provided, this value takes precedence over unit/pack calculations.
+    /// </summary>
+    public decimal? ManualCost { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this line contributes to dough-weight based output calculations.
+    /// </summary>
+    public bool IncludeInDoughWeight { get; set; } = true;
+
+    /// <summary>
+    /// Gets the total cost of this recipe item for a single batch.
+    /// </summary>
+    public decimal TotalCost => CalculateCost();
+
+    /// <summary>
+    /// Calculates line cost using manual, pack, or direct pricing mode.
+    /// Priority: ManualCost -> Pack pricing -> PricePerUnit.
+    /// </summary>
+    /// <param name="batchMultiplier">Batch scale multiplier.</param>
+    public decimal CalculateCost(decimal batchMultiplier = 1m)
+    {
+        var scaledQuantity = Quantity * Math.Max(0m, batchMultiplier);
+
+        if (ManualCost.HasValue)
+        {
+            return ManualCost.Value * Math.Max(0m, batchMultiplier);
+        }
+
+        if (PackNetQuantity.HasValue && PackNetQuantity.Value > 0 &&
+            PricePerPack.HasValue && PricePerPack.Value >= 0)
+        {
+            return (PricePerPack.Value / PackNetQuantity.Value) * scaledQuantity;
+        }
+
+        return scaledQuantity * PricePerUnit;
+    }
 
     /// <summary>
     /// Validates the recipe item fields.
@@ -83,7 +131,15 @@ public class RecipeItem
     /// <returns>True if all required fields are valid; otherwise false.</returns>
     public bool IsValid()
     {
-        return IngredientId > 0 && Quantity > 0 && PricePerUnit >= 0 && !string.IsNullOrWhiteSpace(Unit);
+        var hasManualCost = ManualCost.HasValue && ManualCost.Value >= 0;
+        var hasPackPricing = PackNetQuantity.HasValue && PackNetQuantity.Value > 0 &&
+                             PricePerPack.HasValue && PricePerPack.Value >= 0;
+        var hasDirectPricing = PricePerUnit >= 0;
+
+        return IngredientId > 0 &&
+               Quantity > 0 &&
+               !string.IsNullOrWhiteSpace(Unit) &&
+               (hasManualCost || hasPackPricing || hasDirectPricing);
     }
 }
 
@@ -184,20 +240,92 @@ public class BatchRequest
     public decimal TargetMarginPercent { get; set; } = 0.30m;
 
     /// <summary>
+    /// Enables output calculation based on dough weight instead of theoretical output.
+    /// Spreadsheet formula equivalent: Jumlah donat = TotalBeratDough / BeratPerDonat.
+    /// </summary>
+    public bool UseWeightBasedOutput { get; set; }
+
+    /// <summary>
+    /// Weight of one donut in grams for weight-based output calculation.
+    /// Default follows workbook sample (25g).
+    /// </summary>
+    public decimal DonutWeightGrams { get; set; } = 25m;
+
+    /// <summary>
+    /// Topping usage per donut in grams (workbook N2).
+    /// </summary>
+    public decimal ToppingWeightPerDonutGrams { get; set; }
+
+    /// <summary>
+    /// Topping pack weight in grams (workbook O2).
+    /// </summary>
+    public decimal ToppingPackWeightGrams { get; set; }
+
+    /// <summary>
+    /// Topping pack price (workbook P2).
+    /// </summary>
+    public decimal ToppingPackPrice { get; set; }
+
+    /// <summary>
+    /// Optional target profit amount per batch in currency.
+    /// If set above zero, engine will compute units required to hit this target.
+    /// </summary>
+    public decimal TargetProfitPerBatch { get; set; }
+
+    /// <summary>
+    /// Optional monthly fixed cost for break-even planning.
+    /// If set above zero, engine computes monthly break-even units.
+    /// </summary>
+    public decimal MonthlyFixedCost { get; set; }
+
+    /// <summary>
+    /// Estimated ingredient/input volatility (0 to 1).
+    /// Higher values increase risk buffer in recommended selling prices.
+    /// </summary>
+    public decimal PriceVolatilityPercent { get; set; } = 0.08m;
+
+    /// <summary>
+    /// Risk appetite for pricing decisions (0 to 1).
+    /// 0 = conservative, 1 = aggressive.
+    /// </summary>
+    public decimal RiskAppetitePercent { get; set; } = 0.50m;
+
+    /// <summary>
+    /// Market pressure adjustment (-0.50 to 0.50).
+    /// Negative values push prices down (high competition), positive values push up (strong demand).
+    /// </summary>
+    public decimal MarketPressurePercent { get; set; }
+
+    /// <summary>
     /// Validates the batch request for required and sensible values.
     /// </summary>
     /// <returns>True if valid; otherwise false.</returns>
     public bool IsValid()
     {
+        var hasWeightBasedOutput = UseWeightBasedOutput && DonutWeightGrams > 0;
+        var hasTheoreticalOutput = TheoreticalOutput > 0;
+        var hasValidOutputSource = hasTheoreticalOutput || hasWeightBasedOutput;
+
+        var hasAnyToppingInput = ToppingWeightPerDonutGrams > 0 || ToppingPackWeightGrams > 0 || ToppingPackPrice > 0;
+        var hasValidToppingInputs = !hasAnyToppingInput ||
+            (ToppingWeightPerDonutGrams >= 0 && ToppingPackWeightGrams > 0 && ToppingPackPrice >= 0);
+        var hasValidRiskInputs = PriceVolatilityPercent >= 0 && PriceVolatilityPercent <= 1 &&
+                                 RiskAppetitePercent >= 0 && RiskAppetitePercent <= 1 &&
+                                 MarketPressurePercent >= -0.50m && MarketPressurePercent <= 0.50m;
+
         return Items.Any(i => i.IsValid()) &&
                BatchMultiplier > 0 &&
                (OilUsedLiters == 0 || OilPricePerLiter >= 0) &&
                (EnergyKwh == 0 || EnergyRatePerKwh >= 0) &&
                BatchesPerOilChange > 0 &&
-               TheoreticalOutput > 0 &&
+               hasValidOutputSource &&
                WastePercent >= 0 && WastePercent < 1 &&
                Markup >= 0 &&
-               VatPercent >= 0 && VatPercent < 1;
+               VatPercent >= 0 && VatPercent < 1 &&
+               hasValidToppingInputs &&
+               TargetProfitPerBatch >= 0 &&
+               MonthlyFixedCost >= 0 &&
+               hasValidRiskInputs;
     }
 }
 
@@ -267,6 +395,58 @@ public class BatchCostResult
     public int SellableUnits { get; set; }
 
     /// <summary>
+    /// Gets or sets total dough weight from ingredients included in dough calculation.
+    /// </summary>
+    public decimal DoughWeightTotal { get; set; }
+
+    /// <summary>
+    /// Gets or sets donut count derived from dough weight and donut weight.
+    /// </summary>
+    public decimal DonutCountByWeight { get; set; }
+
+    /// <summary>
+    /// Gets or sets topping cost per donut.
+    /// Formula: ToppingPackPrice / ToppingPackWeightGrams * ToppingWeightPerDonutGrams
+    /// </summary>
+    public decimal ToppingCostPerDonut { get; set; }
+
+    /// <summary>
+    /// Gets or sets total cost per donut including topping.
+    /// Formula: UnitCost + ToppingCostPerDonut
+    /// </summary>
+    public decimal CostPerDonutWithTopping { get; set; }
+
+    /// <summary>
+    /// Gets or sets risk buffer percentage derived from volatility, waste, and cost structure.
+    /// </summary>
+    public decimal RiskBufferPercent { get; set; }
+
+    /// <summary>
+    /// Gets or sets minimum safe price per unit after risk buffer.
+    /// </summary>
+    public decimal MinimumSafePrice { get; set; }
+
+    /// <summary>
+    /// Gets or sets conservative recommended price.
+    /// </summary>
+    public decimal SuggestedPriceConservative { get; set; }
+
+    /// <summary>
+    /// Gets or sets aggressive recommended price.
+    /// </summary>
+    public decimal SuggestedPriceAggressive { get; set; }
+
+    /// <summary>
+    /// Gets or sets lower bound of recommended price range.
+    /// </summary>
+    public decimal RecommendedPriceLow { get; set; }
+
+    /// <summary>
+    /// Gets or sets upper bound of recommended price range.
+    /// </summary>
+    public decimal RecommendedPriceHigh { get; set; }
+
+    /// <summary>
     /// Gets or sets the suggested selling price per unit (before VAT) after applying rounding rules.
     /// Formula: ApplyRounding(UnitCost * (1 + Markup), RoundingRule)
     /// </summary>
@@ -283,6 +463,51 @@ public class BatchCostResult
     /// Formula: (SuggestedPrice - UnitCost) / SuggestedPrice
     /// </summary>
     public decimal Margin { get; set; }
+
+    /// <summary>
+    /// Gets or sets contribution margin per unit at suggested price.
+    /// </summary>
+    public decimal ContributionMarginPerUnit { get; set; }
+
+    /// <summary>
+    /// Gets or sets profit per unit at suggested price.
+    /// </summary>
+    public decimal ProfitPerUnitAtSuggestedPrice { get; set; }
+
+    /// <summary>
+    /// Gets or sets total profit for this batch at suggested price.
+    /// </summary>
+    public decimal ProfitPerBatchAtSuggestedPrice { get; set; }
+
+    /// <summary>
+    /// Gets or sets units needed to achieve target profit per batch.
+    /// </summary>
+    public int UnitsForTargetProfit { get; set; }
+
+    /// <summary>
+    /// Gets or sets monthly break-even units when monthly fixed cost is provided.
+    /// </summary>
+    public int MonthlyBreakEvenUnits { get; set; }
+
+    /// <summary>
+    /// Gets or sets normalized cost volatility score (0 to 1).
+    /// </summary>
+    public decimal CostVolatilityScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets confidence score of pricing recommendation (0 to 1).
+    /// </summary>
+    public decimal PricingConfidenceScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets short recommendation note for operators.
+    /// </summary>
+    public string RecommendationNote { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets warning messages emitted by smart pricing heuristics.
+    /// </summary>
+    public List<string> Warnings { get; set; } = new();
 
     /// <summary>
     /// Gets or sets a detailed breakdown dictionary mapping cost category names to decimal values.

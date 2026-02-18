@@ -35,5 +35,6 @@
     <PkgMicrosoft_Web_WebView2 Condition=" '$(PkgMicrosoft_Web_WebView2)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.web.webview2\1.0.3405.78</PkgMicrosoft_Web_WebView2>
     <PkgMicrosoft_WindowsAppSDK_WinUI Condition=" '$(PkgMicrosoft_WindowsAppSDK_WinUI)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.windowsappsdk.winui\2.0.7-preview</PkgMicrosoft_WindowsAppSDK_WinUI>
     <PkgMicrosoft_WindowsAppSDK_Runtime Condition=" '$(PkgMicrosoft_WindowsAppSDK_Runtime)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.windowsappsdk.runtime\2.0.0-preview1</PkgMicrosoft_WindowsAppSDK_Runtime>
+    <PkgCommunityToolkit_WinUI_UI_Controls_DataGrid Condition=" '$(PkgCommunityToolkit_WinUI_UI_Controls_DataGrid)' == '' ">C:\Users\hazel\.nuget\packages\communitytoolkit.winui.ui.controls.datagrid\7.1.2</PkgCommunityToolkit_WinUI_UI_Controls_DataGrid>
   </PropertyGroup>
 </Project>
