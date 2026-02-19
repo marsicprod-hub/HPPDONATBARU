@@ -1146,9 +1146,41 @@
         "net10.0-windows10.0.22621": {
           "targetAlias": "net10.0-windows10.0.22621.0",
           "dependencies": {
+            "CommunityToolkit.WinUI.Animations": {
+              "target": "Package",
+              "version": "[8.3.260211-preview1, )"
+            },
+            "CommunityToolkit.WinUI.Behaviors": {
+              "target": "Package",
+              "version": "[8.3.260211-preview1, )"
+            },
+            "CommunityToolkit.WinUI.Controls.Primitives": {
+              "target": "Package",
+              "version": "[8.3.260211-preview1, )"
+            },
+            "CommunityToolkit.WinUI.Controls.SettingsControls": {
+              "target": "Package",
+              "version": "[8.3.260211-preview1, )"
+            },
+            "CommunityToolkit.WinUI.Extensions": {
+              "target": "Package",
+              "version": "[8.3.260211-preview1, )"
+            },
+            "CommunityToolkit.WinUI.Helpers": {
+              "target": "Package",
+              "version": "[8.3.260211-preview1, )"
+            },
+            "CommunityToolkit.WinUI.Media": {
+              "target": "Package",
+              "version": "[8.3.260211-preview1, )"
+            },
             "CommunityToolkit.WinUI.UI.Controls.DataGrid": {
               "target": "Package",
               "version": "[7.1.2, )"
+            },
+            "FluentIcons.WinUI": {
+              "target": "Package",
+              "version": "[2.0.319, )"
             },
             "Microsoft.Extensions.Configuration": {
               "target": "Package",
@@ -1166,9 +1198,17 @@
               "target": "Package",
               "version": "[10.0.0, )"
             },
+            "Microsoft.Web.WebView2": {
+              "target": "Package",
+              "version": "[1.0.3848-prerelease, )"
+            },
             "Microsoft.WindowsAppSDK": {
               "target": "Package",
               "version": "[2.0.0-preview1, )"
+            },
+            "Microsoft.Xaml.Behaviors.WinUI.Managed": {
+              "target": "Package",
+              "version": "[3.0.1, )"
             },
             "Serilog": {
               "target": "Package",
@@ -1177,6 +1217,19 @@
             "Serilog.Sinks.File": {
               "target": "Package",
               "version": "[6.0.0, )"
+            },
+            "System.Security.Permissions": {
+              "include": "None",
+              "target": "Package",
+              "version": "[11.0.0-preview.1.26104.118, )"
+            },
+            "WinUI.TableView": {
+              "target": "Package",
+              "version": "[1.4.0, )"
+            },
+            "WinUIEx": {
+              "target": "Package",
+              "version": "[2.9.0, )"
             }
           },
           "imports": [

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Xml.Linq;
@@ -14,6 +15,7 @@ using Serilog;
 using HppDonatApp.Core.Models;
 using HppDonatApp.Core.Services;
 using HppDonatApp.Data.Repositories;
+using HppDonatApp.Services.Ai;
 using HppDonatApp.Services.Mvvm;
 
 namespace HppDonatApp.Services.ViewModels;
@@ -30,12 +32,13 @@ namespace HppDonatApp.Services.ViewModels;
 /// - Price trend analysis
 /// - Data validation and error handling
 /// </summary>
-public class RecipeEditorViewModel : ViewModelBase
+public partial class RecipeEditorViewModel : ViewModelBase
 {
     private readonly IRecipeRepository _recipeRepository;
     private readonly IIngredientRepository _ingredientRepository;
     private readonly IPricingEngine _pricingEngine;
     private readonly ISettingsService _settingsService;
+    private readonly IGenerativeAiService _generativeAiService;
 
     // Observable properties
     private int _selectedRecipeId;
@@ -77,7 +80,7 @@ public class RecipeEditorViewModel : ViewModelBase
     // Pricing parameters
     private decimal _markup = 0.50m;
     private decimal _vatPercent = 0.10m;
-    private string _roundingRule = "0.05";
+    private string _roundingRule = "100";
     private string _pricingStrategy = "FixedMarkup";
     private decimal _targetMarginPercent = 0.30m;
     private decimal _priceVolatilityPercent = 0.08m;
@@ -89,12 +92,19 @@ public class RecipeEditorViewModel : ViewModelBase
     // Calculation results
     private BatchCostResult? _calculationResult;
     private bool _hasCalculationResult;
+    private ObservableCollection<CostBreakdownRowViewModel> _costBreakdownRows = new();
 
     // Labor roles
     private ObservableCollection<LaborRoleViewModel> _laborRoles = new();
+    private LaborRoleViewModel? _selectedLaborRole;
     private string _newLaborName = string.Empty;
     private decimal _newLaborRate = 50m;
     private decimal _newLaborHours = 2m;
+
+    // Recipe browser
+    private ObservableCollection<RecipeSummaryViewModel> _savedRecipes = new();
+    private RecipeSummaryViewModel? _selectedRecipeSummary;
+    private ObservableCollection<string> _pricingStrategies = new();
 
     // UI state
     private bool _isEditingRecipe;
@@ -116,6 +126,7 @@ public class RecipeEditorViewModel : ViewModelBase
     public ICommand ShowParametersCommand { get; }
     public ICommand ImportWorkbookCommand { get; }
     public ICommand AddCustomIngredientCommand { get; }
+    public ICommand OpenSelectedRecipeCommand { get; }
 
     #region Bindable Properties
 
@@ -165,6 +176,18 @@ public class RecipeEditorViewModel : ViewModelBase
     {
         get => _recipeIngredients;
         set => SetProperty(ref _recipeIngredients, value);
+    }
+
+    public ObservableCollection<RecipeSummaryViewModel> SavedRecipes
+    {
+        get => _savedRecipes;
+        set => SetProperty(ref _savedRecipes, value);
+    }
+
+    public RecipeSummaryViewModel? SelectedRecipeSummary
+    {
+        get => _selectedRecipeSummary;
+        set => SetProperty(ref _selectedRecipeSummary, value);
     }
 
     public ObservableCollection<Ingredient> AvailableIngredients
@@ -269,6 +292,24 @@ public class RecipeEditorViewModel : ViewModelBase
         set => SetProperty(ref _markup, Math.Max(0, value));
     }
 
+    public string PricingStrategy
+    {
+        get => _pricingStrategy;
+        set => SetProperty(ref _pricingStrategy, NormalizePricingStrategy(value));
+    }
+
+    public ObservableCollection<string> PricingStrategies
+    {
+        get => _pricingStrategies;
+        set => SetProperty(ref _pricingStrategies, value);
+    }
+
+    public decimal TargetMarginPercent
+    {
+        get => _targetMarginPercent;
+        set => SetProperty(ref _targetMarginPercent, Math.Clamp(value, 0m, 0.95m));
+    }
+
     public decimal VatPercent
     {
         get => _vatPercent;
@@ -318,6 +359,7 @@ public class RecipeEditorViewModel : ViewModelBase
         {
             SetProperty(ref _calculationResult, value);
             HasCalculationResult = value != null;
+            RefreshBreakdownRows();
         }
     }
 
@@ -331,6 +373,36 @@ public class RecipeEditorViewModel : ViewModelBase
     {
         get => _laborRoles;
         set => SetProperty(ref _laborRoles, value);
+    }
+
+    public LaborRoleViewModel? SelectedLaborRole
+    {
+        get => _selectedLaborRole;
+        set => SetProperty(ref _selectedLaborRole, value);
+    }
+
+    public string NewLaborName
+    {
+        get => _newLaborName;
+        set => SetProperty(ref _newLaborName, value);
+    }
+
+    public decimal NewLaborRate
+    {
+        get => _newLaborRate;
+        set => SetProperty(ref _newLaborRate, Math.Max(0m, value));
+    }
+
+    public decimal NewLaborHours
+    {
+        get => _newLaborHours;
+        set => SetProperty(ref _newLaborHours, Math.Max(0m, value));
+    }
+
+    public ObservableCollection<CostBreakdownRowViewModel> CostBreakdownRows
+    {
+        get => _costBreakdownRows;
+        set => SetProperty(ref _costBreakdownRows, value);
     }
 
     public decimal EnergyKwh
@@ -409,12 +481,14 @@ public class RecipeEditorViewModel : ViewModelBase
         IIngredientRepository ingredientRepository,
         IPricingEngine pricingEngine,
         ISettingsService settingsService,
+        IGenerativeAiService generativeAiService,
         ILogger? logger = null) : base(logger)
     {
         _recipeRepository = recipeRepository ?? throw new ArgumentNullException(nameof(recipeRepository));
         _ingredientRepository = ingredientRepository ?? throw new ArgumentNullException(nameof(ingredientRepository));
         _pricingEngine = pricingEngine ?? throw new ArgumentNullException(nameof(pricingEngine));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _generativeAiService = generativeAiService ?? throw new ArgumentNullException(nameof(generativeAiService));
 
         // Initialize commands
         LoadRecipesCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(LoadRecipesAsync, logger: Logger);
@@ -424,15 +498,22 @@ public class RecipeEditorViewModel : ViewModelBase
         AddIngredientCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(AddIngredientAsync, CanAddIngredient, Logger);
         RemoveIngredientCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(RemoveIngredientAsync, CanRemoveIngredient, Logger);
         UpdateIngredientQuantityCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(UpdateIngredientQuantityAsync, logger: Logger);
-        CalculateBatchCostCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(CalculateBatchCostAsync, CanCalculateCost, Logger);
-        AddLaborRoleCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(AddLaborRoleAsync, CanAddLaborRole, Logger);
-        RemoveLaborRoleCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(RemoveLaborRoleAsync, CanRemoveLaborRole, Logger);
+        // Keep this command always executable; validation is handled inside CalculateBatchCostAsync.
+        // This avoids stale CanExecute states after workbook import / grid edits.
+        CalculateBatchCostCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(CalculateBatchCostAsync, logger: Logger);
+        AddLaborRoleCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(AddLaborRoleAsync, logger: Logger);
+        RemoveLaborRoleCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(RemoveLaborRoleAsync, logger: Logger);
         ExportRecipeCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(ExportRecipeAsync, logger: Logger);
         ShowParametersCommand = new RelayCommand(() => ShowCalculationPanel = !ShowCalculationPanel);
         ImportWorkbookCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(ImportWorkbookAsync, logger: Logger);
         AddCustomIngredientCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(AddCustomIngredientAsync, CanAddCustomIngredient, Logger);
+        OpenSelectedRecipeCommand = new HppDonatApp.Services.Mvvm.AsyncRelayCommand(OpenSelectedRecipeAsync, logger: Logger);
+
+        PricingStrategies = new ObservableCollection<string>(PricingStrategyFactory.GetAvailableStrategies());
+        PricingStrategy = NormalizePricingStrategy(_pricingStrategy);
 
         LoadSettings();
+        InitializeAiFeatures();
 
         Logger?.Debug("RecipeEditorViewModel initialized with all commands");
     }
@@ -444,11 +525,21 @@ public class RecipeEditorViewModel : ViewModelBase
     {
         _markup = _settingsService.GetSetting("DefaultMarkup", 0.50m);
         _vatPercent = _settingsService.GetSetting("DefaultVAT", 0.10m);
-        _roundingRule = _settingsService.GetSetting("RoundingRule", "0.05");
-        _pricingStrategy = _settingsService.GetSetting("PricingStrategy", "FixedMarkup");
+        var configuredRoundingRule = _settingsService.GetSetting("RoundingRule", "100");
+        if (!decimal.TryParse(configuredRoundingRule, NumberStyles.Number, CultureInfo.InvariantCulture, out var roundingStep) ||
+            roundingStep < 1m)
+        {
+            configuredRoundingRule = "100";
+            _settingsService.SetSetting("RoundingRule", configuredRoundingRule);
+            _settingsService.SaveSettings();
+        }
 
-        Logger?.Debug("Settings loaded: Markup={Markup:P}, VAT={VAT:P}, RoundingRule={Rule}",
-            _markup, _vatPercent, _roundingRule);
+        _roundingRule = configuredRoundingRule;
+        _pricingStrategy = NormalizePricingStrategy(_settingsService.GetSetting("PricingStrategy", "FixedMarkup"));
+        _targetMarginPercent = _settingsService.GetSetting("TargetMarginPercent", 0.30m);
+
+        Logger?.Debug("Settings loaded: Markup={Markup:P}, VAT={VAT:P}, RoundingRule={Rule}, Strategy={Strategy}, TargetMargin={TargetMargin:P}",
+            _markup, _vatPercent, _roundingRule, _pricingStrategy, _targetMarginPercent);
     }
 
     /// <summary>
@@ -459,12 +550,33 @@ public class RecipeEditorViewModel : ViewModelBase
         await SafeExecuteAsync(async () =>
         {
             IsLoadingRecipes = true;
-            Logger?.Debug("Loading recipes");
+            try
+            {
+                Logger?.Debug("Loading recipes");
 
-            var recipes = await _recipeRepository.GetAllAsync();
-            Logger?.Information("Loaded {Count} recipes", recipes.Count());
+                var recipes = await _recipeRepository.GetAllAsync();
+                SavedRecipes = new ObservableCollection<RecipeSummaryViewModel>(recipes
+                    .OrderBy(x => x.Name)
+                    .Select(x => new RecipeSummaryViewModel
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        Description = x.Description,
+                        TheoreticalOutput = x.TheoreticalOutput,
+                        WastePercent = x.WastePercent
+                    }));
 
-            IsLoadingRecipes = false;
+                if (_selectedRecipeId > 0)
+                {
+                    SelectedRecipeSummary = SavedRecipes.FirstOrDefault(x => x.Id == _selectedRecipeId);
+                }
+
+                Logger?.Information("Loaded {Count} recipes", SavedRecipes.Count);
+            }
+            finally
+            {
+                IsLoadingRecipes = false;
+            }
         }, "Loading recipes");
     }
 
@@ -474,14 +586,61 @@ public class RecipeEditorViewModel : ViewModelBase
     private void NewRecipe()
     {
         _selectedRecipeId = 0;
+        SelectedRecipeSummary = null;
         RecipeName = string.Empty;
         RecipeDescription = string.Empty;
         TheoreticalOutput = 100;
         WastePercent = 0.10m;
         RecipeIngredients.Clear();
+        CalculationResult = null;
+        CostBreakdownRows.Clear();
         IsEditingRecipe = true;
 
         Logger?.Information("New recipe initialized");
+    }
+
+    private async Task OpenSelectedRecipeAsync()
+    {
+        await SafeExecuteAsync(async () =>
+        {
+            if (SelectedRecipeSummary == null)
+            {
+                await ShowErrorAsync("Pilih resep dulu.");
+                return;
+            }
+
+            var recipe = await _recipeRepository.GetByIdAsync(SelectedRecipeSummary.Id);
+            if (recipe == null)
+            {
+                await ShowErrorAsync("Resep tidak ditemukan.");
+                await LoadRecipesAsync();
+                return;
+            }
+
+            _selectedRecipeId = recipe.Id;
+            RecipeName = recipe.Name;
+            RecipeDescription = recipe.Description;
+            TheoreticalOutput = recipe.TheoreticalOutput;
+            WastePercent = recipe.WastePercent;
+
+            var recipeIngredients = await _recipeRepository.GetRecipeIngredientsAsync(recipe.Id);
+            RecipeIngredients = new ObservableCollection<RecipeIngredientViewModel>(
+                recipeIngredients.Select((item, index) => new RecipeIngredientViewModel
+                {
+                    IngredientId = item.IngredientId,
+                    IngredientName = item.IngredientName,
+                    Unit = item.Unit,
+                    Quantity = item.Quantity,
+                    CurrentPrice = item.CurrentPrice,
+                    IncludeInDoughWeight = true,
+                    DisplayOrder = index + 1
+                }));
+
+            CalculationResult = null;
+            IsEditingRecipe = true;
+
+            await ShowSuccessAsync($"Resep '{RecipeName}' berhasil dibuka.");
+        }, "Opening selected recipe");
     }
 
     /// <summary>
@@ -524,15 +683,19 @@ public class RecipeEditorViewModel : ViewModelBase
             {
                 var created = await _recipeRepository.CreateAsync(recipe);
                 _selectedRecipeId = created.Id;
+                await SaveRecipeIngredientsAsync(_selectedRecipeId);
                 await ShowSuccessAsync($"Recipe '{RecipeName}' created successfully");
             }
             else
             {
                 await _recipeRepository.UpdateAsync(recipe);
+                await SaveRecipeIngredientsAsync(_selectedRecipeId);
                 await ShowSuccessAsync($"Recipe '{RecipeName}' updated successfully");
             }
 
             IsEditingRecipe = false;
+            await LoadRecipesAsync();
+            SelectedRecipeSummary = SavedRecipes.FirstOrDefault(x => x.Id == _selectedRecipeId);
             Logger?.Information("Recipe saved: {Name}, ID={Id}", RecipeName, _selectedRecipeId);
         }, "Saving recipe");
     }
@@ -546,6 +709,7 @@ public class RecipeEditorViewModel : ViewModelBase
         {
             Logger?.Debug("Deleting recipe: ID={RecipeId}", _selectedRecipeId);
             await _recipeRepository.DeleteAsync(_selectedRecipeId);
+            await LoadRecipesAsync();
             await ShowSuccessAsync("Recipe deleted successfully");
             NewRecipe();
         }, "Deleting recipe");
@@ -743,8 +907,8 @@ public class RecipeEditorViewModel : ViewModelBase
                 Markup = Markup,
                 VatPercent = VatPercent,
                 RoundingRule = RoundingRule,
-                PricingStrategy = _pricingStrategy,
-                TargetMarginPercent = _targetMarginPercent
+                PricingStrategy = PricingStrategy,
+                TargetMarginPercent = TargetMarginPercent
             };
 
             if (!request.IsValid())
@@ -754,6 +918,10 @@ public class RecipeEditorViewModel : ViewModelBase
             }
 
             CalculationResult = await _pricingEngine.CalculateBatchCostAsync(request);
+            if (CalculationResult != null)
+            {
+                CaptureCalculationHistory(request, CalculationResult);
+            }
             ShowCalculationPanel = true;
 
             Logger?.Information("Batch cost calculated: UnitCost={UnitCost:C}, SuggestedPrice={Price:C}",
@@ -761,6 +929,60 @@ public class RecipeEditorViewModel : ViewModelBase
 
             await ShowSuccessAsync("Batch cost calculated successfully");
         }, "Calculating batch cost");
+    }
+
+    private async Task SaveRecipeIngredientsAsync(int recipeId)
+    {
+        var existing = await _recipeRepository.GetRecipeIngredientsAsync(recipeId);
+        foreach (var item in existing)
+        {
+            await _recipeRepository.RemoveIngredientAsync(recipeId, item.RecipeIngredientId);
+        }
+
+        foreach (var line in RecipeIngredients)
+        {
+            var ingredientId = await EnsureIngredientExistsAsync(line);
+            await _recipeRepository.AddIngredientAsync(recipeId, ingredientId, line.Quantity);
+        }
+    }
+
+    private async Task<int> EnsureIngredientExistsAsync(RecipeIngredientViewModel line)
+    {
+        if (line.IngredientId > 0)
+        {
+            var existingById = await _ingredientRepository.GetByIdAsync(line.IngredientId);
+            if (existingById != null)
+            {
+                return existingById.Id;
+            }
+        }
+
+        var existingByName = await _ingredientRepository.GetByNameAsync(line.IngredientName);
+        if (existingByName != null)
+        {
+            line.IngredientId = existingByName.Id;
+            return existingByName.Id;
+        }
+
+        var inferredPrice = line.Quantity > 0m
+            ? line.TotalCost / line.Quantity
+            : 0m;
+
+        var created = await _ingredientRepository.CreateAsync(new Ingredient
+        {
+            Name = line.IngredientName,
+            Unit = string.IsNullOrWhiteSpace(line.Unit) ? "g" : line.Unit,
+            CurrentPrice = Math.Max(0m, inferredPrice)
+        });
+
+        line.IngredientId = created.Id;
+
+        if (AvailableIngredients.All(x => x.Id != created.Id))
+        {
+            AvailableIngredients.Add(created);
+        }
+
+        return created.Id;
     }
 
     /// <summary>
@@ -802,7 +1024,7 @@ public class RecipeEditorViewModel : ViewModelBase
     {
         await SafeExecuteAsync(async () =>
         {
-            if (string.IsNullOrWhiteSpace(_newLaborName))
+            if (string.IsNullOrWhiteSpace(NewLaborName))
             {
                 await ShowErrorAsync("Labor role name is required");
                 return;
@@ -810,17 +1032,20 @@ public class RecipeEditorViewModel : ViewModelBase
 
             var labor = new LaborRoleViewModel
             {
-                Name = _newLaborName,
-                HourlyRate = _newLaborRate,
-                Hours = _newLaborHours
+                Id = LaborRoles.Count == 0 ? 1 : LaborRoles.Max(x => x.Id) + 1,
+                Name = NewLaborName.Trim(),
+                HourlyRate = NewLaborRate,
+                Hours = NewLaborHours
             };
 
             LaborRoles.Add(labor);
-            _newLaborName = string.Empty;
-            _newLaborRate = 50m;
-            _newLaborHours = 2m;
+            NewLaborName = string.Empty;
+            NewLaborRate = 50m;
+            NewLaborHours = 2m;
+            SelectedLaborRole = labor;
 
             Logger?.Information("Labor role added: {Name}, Rate={Rate:C}/h", labor.Name, labor.HourlyRate);
+            await ShowSuccessAsync($"Tenaga kerja '{labor.Name}' ditambahkan.");
         }, "Adding labor role");
     }
 
@@ -831,8 +1056,16 @@ public class RecipeEditorViewModel : ViewModelBase
     {
         await SafeExecuteAsync(async () =>
         {
-            // Implementation would remove selected labor role
-            await Task.CompletedTask;
+            if (SelectedLaborRole == null)
+            {
+                await ShowErrorAsync("Pilih data tenaga kerja yang ingin dihapus.");
+                return;
+            }
+
+            var name = SelectedLaborRole.Name;
+            LaborRoles.Remove(SelectedLaborRole);
+            SelectedLaborRole = null;
+            await ShowSuccessAsync($"Tenaga kerja '{name}' dihapus.");
         }, "Removing labor role");
     }
 
@@ -843,9 +1076,54 @@ public class RecipeEditorViewModel : ViewModelBase
     {
         await SafeExecuteAsync(async () =>
         {
-            Logger?.Information("Exporting recipe: {Name}", RecipeName);
-            // Implementation would export recipe
-            await ShowSuccessAsync("Recipe exported successfully");
+            if (string.IsNullOrWhiteSpace(RecipeName))
+            {
+                await ShowErrorAsync("Isi nama resep dulu sebelum export.");
+                return;
+            }
+
+            var exportDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "HppDonatExports");
+            Directory.CreateDirectory(exportDirectory);
+
+            var safeName = string.Concat(RecipeName.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
+            var filePath = Path.Combine(exportDirectory, $"{safeName}-{DateTime.Now:yyyyMMdd-HHmmss}.csv");
+
+            await using var writer = new StreamWriter(filePath, false, Encoding.UTF8);
+            await writer.WriteLineAsync("Section,Field,Value");
+            await writer.WriteLineAsync($"Recipe,Name,\"{RecipeName}\"");
+            await writer.WriteLineAsync($"Recipe,Description,\"{RecipeDescription}\"");
+            await writer.WriteLineAsync($"Recipe,PricingStrategy,{PricingStrategy}");
+            await writer.WriteLineAsync($"Recipe,Markup,{Markup}");
+            await writer.WriteLineAsync($"Recipe,VAT,{VatPercent}");
+            await writer.WriteLineAsync($"Recipe,RoundingRule,{RoundingRule}");
+            await writer.WriteLineAsync($"Recipe,TheoreticalOutput,{TheoreticalOutput}");
+            await writer.WriteLineAsync($"Recipe,WastePercent,{WastePercent}");
+            await writer.WriteLineAsync($"Recipe,BatchMultiplier,{BatchMultiplier}");
+            await writer.WriteLineAsync($"Recipe,PackagingPerUnit,{PackagingPerUnit}");
+            await writer.WriteLineAsync("Ingredients,Name,Unit,Quantity,PricePerPack,PackNetQuantity,ManualCost,LineTotal");
+
+            foreach (var ingredient in RecipeIngredients)
+            {
+                await writer.WriteLineAsync(
+                    $"Ingredients,\"{ingredient.IngredientName}\",{ingredient.Unit},{ingredient.Quantity},{ingredient.PricePerPack},{ingredient.PackNetQuantity},{ingredient.ManualCost},{ingredient.TotalCost}");
+            }
+
+            if (CalculationResult != null)
+            {
+                await writer.WriteLineAsync("Results,Metric,Value");
+                await writer.WriteLineAsync($"Results,TotalBatchCost,{CalculationResult.TotalBatchCost}");
+                await writer.WriteLineAsync($"Results,UnitCost,{CalculationResult.UnitCost}");
+                await writer.WriteLineAsync($"Results,SuggestedPrice,{CalculationResult.SuggestedPrice}");
+                await writer.WriteLineAsync($"Results,PriceIncVat,{CalculationResult.PriceIncVat}");
+                await writer.WriteLineAsync($"Results,Margin,{CalculationResult.Margin}");
+                await writer.WriteLineAsync($"Results,ContributionMarginPerUnit,{CalculationResult.ContributionMarginPerUnit}");
+                await writer.WriteLineAsync($"Results,ProfitPerBatch,{CalculationResult.ProfitPerBatchAtSuggestedPrice}");
+            }
+
+            Logger?.Information("Recipe exported to {Path}", filePath);
+            await ShowSuccessAsync($"Recipe exported: {filePath}");
         }, "Exporting recipe");
     }
 
@@ -896,7 +1174,9 @@ public class RecipeEditorViewModel : ViewModelBase
             ToppingPackPrice = imported.ToppingPackPrice;
             Markup = 0m;
             VatPercent = 0m;
-            RoundingRule = "0.01";
+            RoundingRule = "100";
+            PricingStrategy = "FixedMarkup";
+            TargetMarginPercent = 0.30m;
             PriceVolatilityPercent = 0.08m;
             RiskAppetitePercent = 0.50m;
             MarketPressurePercent = 0m;
@@ -1110,16 +1390,67 @@ public class RecipeEditorViewModel : ViewModelBase
         return 25m;
     }
 
+    private string NormalizePricingStrategy(string? strategy)
+    {
+        if (string.IsNullOrWhiteSpace(strategy))
+        {
+            return "FixedMarkup";
+        }
+
+        var available = PricingStrategyFactory.GetAvailableStrategies();
+        var normalized = available.FirstOrDefault(x => string.Equals(x, strategy, StringComparison.OrdinalIgnoreCase));
+        return normalized ?? "FixedMarkup";
+    }
+
+    private void RefreshBreakdownRows()
+    {
+        CostBreakdownRows.Clear();
+        if (CalculationResult?.BreakdownDictionary == null || CalculationResult.BreakdownDictionary.Count == 0)
+        {
+            return;
+        }
+
+        var total = CalculationResult.TotalBatchCost <= 0m ? 1m : CalculationResult.TotalBatchCost;
+        var preferredOrder = new[]
+        {
+            "Ingredients",
+            "Oil (Usage)",
+            "Oil (Maintenance)",
+            "Energy",
+            "Labor",
+            "Overhead",
+            "Packaging",
+            "ToppingPerDonut",
+            "CostPerDonutWithTopping",
+            "MinimumSafePrice",
+            "ContributionMarginPerUnit",
+            "RiskBufferPercent"
+        };
+
+        foreach (var key in preferredOrder)
+        {
+            if (!CalculationResult.BreakdownDictionary.TryGetValue(key, out var amount))
+            {
+                continue;
+            }
+
+            var isPercent = key.EndsWith("Percent", StringComparison.OrdinalIgnoreCase);
+            var percent = isPercent ? amount : amount / total;
+            CostBreakdownRows.Add(new CostBreakdownRowViewModel
+            {
+                Component = key,
+                Amount = amount,
+                Percent = percent
+            });
+        }
+    }
+
     // Validation methods for commands
     private bool CanSaveRecipe() => !string.IsNullOrWhiteSpace(RecipeName) && RecipeIngredients.Count > 0;
     private bool CanDeleteRecipe() => _selectedRecipeId > 0;
     private bool CanAddIngredient() => SelectedAvailableIngredient != null;
     private bool CanRemoveIngredient() => SelectedIngredient != null;
-    private bool CanCalculateCost() => RecipeIngredients.Count > 0 &&
-        (UseWeightBasedOutput ? DonutWeightGrams > 0 : TheoreticalOutput > 0);
     private bool CanAddCustomIngredient() => !string.IsNullOrWhiteSpace(NewIngredientName) && NewIngredientQuantity > 0m;
-    private bool CanAddLaborRole() => !string.IsNullOrWhiteSpace(_newLaborName) && _newLaborRate > 0;
-    private bool CanRemoveLaborRole() => true; // Placeholder
 
     /// <summary>
     /// Overrides to load ingredients when navigated to.
@@ -1128,9 +1459,36 @@ public class RecipeEditorViewModel : ViewModelBase
     {
         await SafeExecuteAsync(async () =>
         {
-            var ingredients = await _ingredientRepository.GetAllAsync();
-            AvailableIngredients = new ObservableCollection<Ingredient>(ingredients);
-            Logger?.Information("Loaded {Count} available ingredients", ingredients.Count());
+            RefreshAiConfigurationState();
+            IsLoadingRecipes = true;
+            try
+            {
+                var ingredients = await _ingredientRepository.GetAllAsync();
+                AvailableIngredients = new ObservableCollection<Ingredient>(ingredients);
+
+                var recipes = await _recipeRepository.GetAllAsync();
+                SavedRecipes = new ObservableCollection<RecipeSummaryViewModel>(recipes
+                    .OrderBy(x => x.Name)
+                    .Select(x => new RecipeSummaryViewModel
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        Description = x.Description,
+                        TheoreticalOutput = x.TheoreticalOutput,
+                        WastePercent = x.WastePercent
+                    }));
+
+                if (_selectedRecipeId > 0)
+                {
+                    SelectedRecipeSummary = SavedRecipes.FirstOrDefault(x => x.Id == _selectedRecipeId);
+                }
+
+                Logger?.Information("Loaded {IngredientCount} ingredients and {RecipeCount} recipes", ingredients.Count(), SavedRecipes.Count);
+            }
+            finally
+            {
+                IsLoadingRecipes = false;
+            }
         }, "Loading ingredients");
     }
 
@@ -1273,6 +1631,22 @@ public class RecipeIngredientViewModel : ObservableObject
             return Quantity * CurrentPrice;
         }
     }
+}
+
+public class RecipeSummaryViewModel
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public int TheoreticalOutput { get; set; }
+    public decimal WastePercent { get; set; }
+}
+
+public class CostBreakdownRowViewModel
+{
+    public string Component { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public decimal Percent { get; set; }
 }
 
 /// <summary>

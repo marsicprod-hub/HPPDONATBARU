@@ -29,11 +29,13 @@
     <Import Project="$(NuGetPackageRoot)microsoft.windowsappsdk\2.0.0-preview1\buildTransitive\Microsoft.WindowsAppSDK.props" Condition="Exists('$(NuGetPackageRoot)microsoft.windowsappsdk\2.0.0-preview1\buildTransitive\Microsoft.WindowsAppSDK.props')" />
     <Import Project="$(NuGetPackageRoot)microsoft.extensions.configuration.usersecrets\10.0.0\buildTransitive\net8.0\Microsoft.Extensions.Configuration.UserSecrets.props" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.configuration.usersecrets\10.0.0\buildTransitive\net8.0\Microsoft.Extensions.Configuration.UserSecrets.props')" />
     <Import Project="$(NuGetPackageRoot)microsoft.entityframeworkcore\10.0.0\buildTransitive\net10.0\Microsoft.EntityFrameworkCore.props" Condition="Exists('$(NuGetPackageRoot)microsoft.entityframeworkcore\10.0.0\buildTransitive\net10.0\Microsoft.EntityFrameworkCore.props')" />
+    <Import Project="$(NuGetPackageRoot)fluenticons.winui\2.0.319\buildTransitive\net8.0-windows10.0.19041.0\FluentIcons.WinUI.props" Condition="Exists('$(NuGetPackageRoot)fluenticons.winui\2.0.319\buildTransitive\net8.0-windows10.0.19041.0\FluentIcons.WinUI.props')" />
   </ImportGroup>
   <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
     <PkgMicrosoft_Windows_SDK_BuildTools_MSIX Condition=" '$(PkgMicrosoft_Windows_SDK_BuildTools_MSIX)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.windows.sdk.buildtools.msix\1.7.251221100</PkgMicrosoft_Windows_SDK_BuildTools_MSIX>
-    <PkgMicrosoft_Web_WebView2 Condition=" '$(PkgMicrosoft_Web_WebView2)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.web.webview2\1.0.3405.78</PkgMicrosoft_Web_WebView2>
+    <PkgMicrosoft_Web_WebView2 Condition=" '$(PkgMicrosoft_Web_WebView2)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.web.webview2\1.0.3848-prerelease</PkgMicrosoft_Web_WebView2>
     <PkgMicrosoft_WindowsAppSDK_WinUI Condition=" '$(PkgMicrosoft_WindowsAppSDK_WinUI)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.windowsappsdk.winui\2.0.7-preview</PkgMicrosoft_WindowsAppSDK_WinUI>
+    <PkgWinUIEx Condition=" '$(PkgWinUIEx)' == '' ">C:\Users\hazel\.nuget\packages\winuiex\2.9.0</PkgWinUIEx>
     <PkgMicrosoft_WindowsAppSDK_Runtime Condition=" '$(PkgMicrosoft_WindowsAppSDK_Runtime)' == '' ">C:\Users\hazel\.nuget\packages\microsoft.windowsappsdk.runtime\2.0.0-preview1</PkgMicrosoft_WindowsAppSDK_Runtime>
     <PkgCommunityToolkit_WinUI_UI_Controls_DataGrid Condition=" '$(PkgCommunityToolkit_WinUI_UI_Controls_DataGrid)' == '' ">C:\Users\hazel\.nuget\packages\communitytoolkit.winui.ui.controls.datagrid\7.1.2</PkgCommunityToolkit_WinUI_UI_Controls_DataGrid>
   </PropertyGroup>

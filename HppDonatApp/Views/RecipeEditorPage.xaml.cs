@@ -1,4 +1,6 @@
 using System;
+using System.Threading.Tasks;
+using CommunityToolkit.WinUI.Animations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -9,6 +11,7 @@ namespace HppDonatApp.Views;
 public sealed partial class RecipeEditorPage : Page
 {
     private readonly RecipeEditorViewModel? _viewModel;
+    private bool _hasPlayedEntranceAnimation;
 
     public RecipeEditorPage()
     {
@@ -30,5 +33,22 @@ public sealed partial class RecipeEditorPage : Page
         {
             await _viewModel.OnNavigatedToAsync();
         }
+
+        await PlayEntranceAnimationAsync();
+    }
+
+    private async Task PlayEntranceAnimationAsync()
+    {
+        if (_hasPlayedEntranceAnimation)
+        {
+            return;
+        }
+
+        _hasPlayedEntranceAnimation = true;
+        await AnimationBuilder
+            .Create()
+            .Opacity(1d, 0d, duration: TimeSpan.FromMilliseconds(320))
+            .Translation(Axis.Y, 0d, 18d, duration: TimeSpan.FromMilliseconds(380))
+            .StartAsync(RootContent);
     }
 }

@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -281,46 +284,149 @@ public interface ISettingsService
 }
 
 /// <summary>
-/// Default implementation of settings service using in-memory dictionary.
+/// Default implementation of settings service backed by a JSON file in LocalAppData.
 /// </summary>
 public class DefaultSettingsService : ISettingsService
 {
-    private readonly Dictionary<string, object> _settings = new();
+    private readonly Dictionary<string, string> _settings = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger? _logger;
+    private readonly string _settingsFilePath;
+    private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
     public DefaultSettingsService(ILogger? logger = null)
     {
         _logger = logger;
+        _settingsFilePath = ResolveSettingsPath();
+        LoadSettingsFromDisk();
         InitializeDefaults();
+        SaveSettings();
     }
 
     private void InitializeDefaults()
     {
-        _settings["Theme"] = "Light";
-        _settings["Currency"] = "IDR";
-        _settings["Language"] = "en-US";
-        _settings["RoundingRule"] = "0.05";
-        _settings["VAT"] = 0.10m;
-        _settings["BatchesPerMonth"] = 4;
+        SetDefault("Theme", "Light");
+        SetDefault("Currency", "IDR");
+        SetDefault("Language", "en-US");
+        SetDefault("RoundingRule", "100");
+        SetDefault("VAT", 0.10m);
+        SetDefault("BatchesPerMonth", 4);
+        SetDefault("Ai.GeminiModel", "gemini-2.5-flash");
+        SetDefault("Ai.GeminiApiKey", string.Empty);
     }
 
     public T GetSetting<T>(string key, T defaultValue)
     {
-        if (_settings.TryGetValue(key, out var value) && value is T typed)
+        if (_settings.TryGetValue(key, out var value))
         {
-            return typed;
+            try
+            {
+                if (typeof(T) == typeof(string))
+                {
+                    return (T)(object)value;
+                }
+
+                if (typeof(T) == typeof(int) && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intValue))
+                {
+                    return (T)(object)intValue;
+                }
+
+                if (typeof(T) == typeof(decimal) && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var decimalValue))
+                {
+                    return (T)(object)decimalValue;
+                }
+
+                if (typeof(T) == typeof(bool) && bool.TryParse(value, out var boolValue))
+                {
+                    return (T)(object)boolValue;
+                }
+
+                var typedValue = JsonSerializer.Deserialize<T>(value, _jsonOptions);
+                if (typedValue != null)
+                {
+                    return typedValue;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warning(ex, "Failed parsing setting {Key}; using default value", key);
+            }
         }
+
         return defaultValue;
     }
 
     public void SetSetting<T>(string key, T value)
     {
-        _settings[key] = value ?? throw new ArgumentNullException(nameof(value));
-        _logger?.Debug("Setting updated: {Key} = {Value}", key, value);
+        if (value is null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        _settings[key] = ConvertToStorageValue(value);
+        _logger?.Debug("Setting updated: {Key}", key);
     }
 
     public void SaveSettings()
     {
-        _logger?.Information("Settings saved");
+        var json = JsonSerializer.Serialize(_settings, _jsonOptions);
+        File.WriteAllText(_settingsFilePath, json);
+        _logger?.Information("Settings saved to {Path}", _settingsFilePath);
+    }
+
+    private void LoadSettingsFromDisk()
+    {
+        if (!File.Exists(_settingsFilePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var raw = File.ReadAllText(_settingsFilePath);
+            var loaded = JsonSerializer.Deserialize<Dictionary<string, string>>(raw, _jsonOptions);
+            if (loaded == null)
+            {
+                return;
+            }
+
+            foreach (var entry in loaded)
+            {
+                _settings[entry.Key] = entry.Value;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.Warning(ex, "Failed loading settings file, defaults will be used");
+        }
+    }
+
+    private void SetDefault<T>(string key, T value)
+    {
+        if (_settings.ContainsKey(key))
+        {
+            return;
+        }
+
+        _settings[key] = ConvertToStorageValue(value);
+    }
+
+    private static string ConvertToStorageValue<T>(T value)
+    {
+        return value switch
+        {
+            string s => s,
+            int i => i.ToString(CultureInfo.InvariantCulture),
+            decimal d => d.ToString(CultureInfo.InvariantCulture),
+            bool b => b.ToString(CultureInfo.InvariantCulture),
+            _ => JsonSerializer.Serialize(value)
+        };
+    }
+
+    private static string ResolveSettingsPath()
+    {
+        var baseFolder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var appFolder = Path.Combine(baseFolder, "HppDonatApp");
+        Directory.CreateDirectory(appFolder);
+        return Path.Combine(appFolder, "settings.json");
     }
 }

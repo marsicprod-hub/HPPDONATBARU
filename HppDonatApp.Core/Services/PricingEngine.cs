@@ -277,9 +277,10 @@ public class PricingEngine : IPricingEngine
                 ? result.CostPerDonutWithTopping
                 : result.UnitCost;
 
-            var strategySuggestedPrice = _pricingStrategy!.CalculatePrice(pricingBaseCost, request);
+            var activePricingStrategy = ResolvePricingStrategy(request);
+            var strategySuggestedPrice = activePricingStrategy.CalculatePrice(pricingBaseCost, request);
             _logger?.Debug("Suggested price calculated using {Strategy}: {Price:C}",
-                _pricingStrategy.GetType().Name, strategySuggestedPrice);
+                activePricingStrategy.GetType().Name, strategySuggestedPrice);
 
             // Step 11: Apply advanced pricing intelligence and operational KPIs
             EnrichAdvancedPricing(request, result, pricingBaseCost, outputUnits, strategySuggestedPrice);
@@ -818,8 +819,34 @@ public class PricingEngine : IPricingEngine
         keyBuilder.Append(request.TargetProfitPerBatch.ToString("F2"));
         keyBuilder.Append("_");
         keyBuilder.Append(request.MonthlyFixedCost.ToString("F2"));
+        keyBuilder.Append("_");
+        keyBuilder.Append(request.TargetMarginPercent.ToString("F2"));
+        keyBuilder.Append("_");
+        keyBuilder.Append(request.PricingStrategy);
+        keyBuilder.Append("_");
+        keyBuilder.Append(request.UseWeightBasedOutput ? "w" : "t");
+        keyBuilder.Append("_");
+        keyBuilder.Append(request.DonutWeightGrams.ToString("F2"));
 
         return keyBuilder.ToString();
+    }
+
+    private IPricingStrategy ResolvePricingStrategy(BatchRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.PricingStrategy))
+        {
+            return _pricingStrategy ?? new FixedMarkupPricingStrategy(_logger);
+        }
+
+        try
+        {
+            return PricingStrategyFactory.CreateStrategy(request.PricingStrategy, _logger);
+        }
+        catch (Exception ex)
+        {
+            _logger?.Warning(ex, "Failed to resolve pricing strategy '{Strategy}'. Falling back to default.", request.PricingStrategy);
+            return _pricingStrategy ?? new FixedMarkupPricingStrategy(_logger);
+        }
     }
 
     /// <summary>

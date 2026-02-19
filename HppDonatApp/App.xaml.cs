@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using HppDonatApp.Core.Services;
 using HppDonatApp.Data;
 using HppDonatApp.Data.Repositories;
+using HppDonatApp.Services.Ai;
 using HppDonatApp.Services.Mvvm;
 using HppDonatApp.Services.ViewModels;
 
@@ -121,10 +122,12 @@ public partial class App : Application
 
                 // Register Settings Service
                 services.AddSingleton<ISettingsService, DefaultSettingsService>();
+                services.AddSingleton<IGenerativeAiService, GeminiGenerativeAiService>();
 
                 // Register ViewModels
                 services.AddTransient<RecipeEditorViewModel>();
                 services.AddTransient<DashboardViewModel>();
+                services.AddTransient<SettingsViewModel>();
 
                 // Register UI Windows
                 services.AddSingleton<MainWindow>();
